@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?><extensionAttribute>
+<displayName>Forced Software Update Countdown Start Date</displayName>
+<description>Date after which a defined countdown in days can trigger forced Software Updates.</description>
+<dataType>date</dataType>
+<scriptContentsMac>#/usr/bin/env zsh&#13;
+&#13;
+### Enter your organization's preference domain below&#13;
+&#13;
+companyDomain=ltd.randm&#13;
+&#13;
+echo "&lt;result&gt;$(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)&lt;/result&gt;"</scriptContentsMac>
+</extensionAttribute>
