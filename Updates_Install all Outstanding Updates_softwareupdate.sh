@@ -36,15 +36,15 @@ function presentUserWithUpdateNotification ()
 
 
 if [[ "$OSMajorVersion" -ge 14 && "$CurrentUser" != "root" ]]; then
-	
+
     presentUserWithUpdateNotification
-	
+
     sudo -u "$CurrentUser" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
-    
+
 elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 && "$CurrentUser" != "root" ]]; then
 
 	presentUserWithUpdateNotification
-    
+
 	sudo -u "$CurrentUser" /usr/bin/open macappstore://showUpdatesPage
 fi
 
@@ -64,5 +64,5 @@ if [[ "$CurrentUser" = "root" ]]; then
     else
     	echo "macOS Version could not be determined, exiting"
         exit 1
-    fi           
+    fi
 fi
