@@ -26,7 +26,7 @@ currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{ print $3 }')
 #########################################################
 
 if [[ ${numberofAvailableUpdates} -eq 0 ]]; then
-	
+
 	echo "Client is Completely up to Date, Exiting"
 	if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
 		echo "Software Update Countdown Timer in Place, Removing"
@@ -36,23 +36,24 @@ if [[ ${numberofAvailableUpdates} -eq 0 ]]; then
 fi
 
 if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
-	
+
 	if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
 		echo "Software Update Countdown Already in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
 	else
 		defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date "+%Y-%m-%d")
 		echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
 	fi
-	
+
 	######### Notify the User about pending Updates ##########
-	
+	### Edit the forward date (+7d below) to your preferred number of days after which nudging kicks in. ###
+
 	softwareUpdateInstallDeadline=$(date -v +7d -r /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist "+%D")
-	
+
 	userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
 	-windowType utility \
 	-windowPosition ur \
 	-title Updates Available \
-	-description "macOS Updates are available and will start to be installed automatically on or after $softwareUpdateInstallDeadline. 
+	-description "macOS Updates are available and will start to be installed automatically on or after $softwareUpdateInstallDeadline.
 	You may run any updates that you're notified about prior to the deadline at your convenience." \
 	-alignDescription left \
 	-icon /System/Library/CoreServices/Software Update.app/Contents/Resources/SoftwareUpdate.icns \
@@ -62,7 +63,7 @@ if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 	-defaultButton 0 \
 	-cancelButton 1
 	)
-	
+
 	if [ "$userUpdateChoice" -eq 2 ]; then
 	    echo "User chose to defer to a later date, exiting"
 	    exit 0
