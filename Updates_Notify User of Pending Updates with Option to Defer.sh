@@ -56,8 +56,8 @@ if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 	-description "macOS Updates are available and will start to be installed automatically on or after $softwareUpdateInstallDeadline.
 	You may run any updates that you're notified about prior to the deadline at your convenience." \
 	-alignDescription left \
-	-icon /System/Library/CoreServices/Software Update.app/Contents/Resources/SoftwareUpdate.icns \
-	-iconSize 200 \
+	-icon "/System/Library/CoreServices/Software Update.app/Contents/Resources/SoftwareUpdate.icns" \
+	-iconSize 150 \
 	-button1 Update \
 	-button2 Dismiss \
 	-defaultButton 0 \
