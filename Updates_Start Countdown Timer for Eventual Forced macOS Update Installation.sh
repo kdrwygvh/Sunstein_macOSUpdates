@@ -29,7 +29,6 @@ if [[ ${numberofAvailableUpdates} -eq 0 ]]; then
 		rm -v /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist
         /usr/local/bin/jamf recon
 	fi
-
 fi
 
 if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
@@ -37,10 +36,16 @@ if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 	if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
 		echo "Software Update Countdown Already in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
 	else
-		defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date "+%Y-%m-%d")
-		echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
-        /usr/local/bin/jamf recon
-	fi
+		managedDeferredInstallDelay=$(defaults read /Library/Managed\ Preferences/com.apple.SoftwareUpdate ManagedDeferredInstallDelay)
+		if [[ $managedDeferredInstallDelay =~ [[:digit:]] ]]; then
+			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
+			echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
+		else
+			echo "Setting a default user facing deferral date of 7 days as deferral doesn't appear to be managed via MDM"
+			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date -v +7d "+%Y-%m-%d")
+			echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
+		fi
 fi
 
+/usr/local/bin/jamf recon
 

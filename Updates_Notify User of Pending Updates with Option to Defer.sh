@@ -36,18 +36,24 @@ if [[ ${numberofAvailableUpdates} -eq 0 ]]; then
 fi
 
 if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
-
+	
 	if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
 		echo "Software Update Countdown Already in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
 	else
-		defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date "+%Y-%m-%d")
-		echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
-	fi
+		managedDeferredInstallDelay=$(defaults read /Library/Managed\ Preferences/com.apple.SoftwareUpdate ManagedDeferredInstallDelay)
+		if [[ $managedDeferredInstallDelay =~ [[:digit:]] ]]; then
+			softwareUpdateInstallDeadline=$(date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
+			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
+			echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
+		else
+			echo "Setting a default user facing deferral date of 7 days as deferral doesn't appear to be managed via MDM"
+			softwareUpdateInstallDeadline=$(date -v +7d "+%Y-%m-%d")
+			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date -v +7d "+%Y-%m-%d")
+			echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
+		fi
 
 	######### Notify the User about pending Updates ##########
 	### Edit the forward date (+7d below) to your preferred number of days after which nudging kicks in. ###
-
-	softwareUpdateInstallDeadline=$(date -v +7d -r /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist "+%D")
 
 	userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
 	-windowType utility \
