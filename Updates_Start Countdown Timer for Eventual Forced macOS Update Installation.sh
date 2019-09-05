@@ -23,7 +23,7 @@ fi
 
 if [[ ${numberofAvailableUpdates} -eq 0 ]]; then
 	
-	echo "Client is Completely up to Date, Exiting"
+	echo "Client is Completely up to Date"
 	if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
 		echo "Software Update Countdown Timer in Place, Removing"
 		rm -v /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist
@@ -45,6 +45,7 @@ if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date -v +7d "+%Y-%m-%d")
 			echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
 		fi
+	fi
 fi
 
 /usr/local/bin/jamf recon
