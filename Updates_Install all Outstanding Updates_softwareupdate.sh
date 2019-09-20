@@ -29,7 +29,7 @@ function presentUserWithUpdateNotification ()
 	-iconSize 200 \
 	-button1 "Update Now" \
 	-defaultButton 0 \
-    -lockHUD
+  -lockHUD
 }
 
 #########################################################

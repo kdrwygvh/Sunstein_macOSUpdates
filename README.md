@@ -1,5 +1,5 @@
 The concept of 'nudging' in the context of systems administration is to create a framework that gives the user every opportunity to do the right
-thing to achieve your desired outcome O, and only after every opportunity has been given taking a more aggressive approach to achieve O.
+thing to achieve your desired outcome _O_, and only after every opportunity has been given taking a more aggressive approach to achieve _O_.
 
 **Nudge_macOS Updates** is a way of applying this concept to macOS updates. It gives the user the opportunity to perform updates on their own time.
 Standard Apple notifications and macOS's internal ML scheduling algorithms are relied on as much as possible.
