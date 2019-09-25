@@ -36,21 +36,23 @@ if [[ ${numberofAvailableUpdates} -eq 0 ]]; then
 fi
 
 if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
-	
+
 	if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
 		echo "Software Update Countdown Already in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
+		softwareUpdateInstallDeadline=$(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)
 	else
 		managedDeferredInstallDelay=$(defaults read /Library/Managed\ Preferences/com.apple.SoftwareUpdate ManagedDeferredInstallDelay)
 		if [[ $managedDeferredInstallDelay =~ [[:digit:]] ]]; then
-			softwareUpdateInstallDeadline=$(date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
-			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
+			softwareUpdateInstallDeadline=$(/bin/date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
+			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(/bin/date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
 			echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
 		else
 			echo "Setting a default user facing deferral date of 7 days as deferral doesn't appear to be managed via MDM"
-			softwareUpdateInstallDeadline=$(date -v +7d "+%Y-%m-%d")
-			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date -v +7d "+%Y-%m-%d")
+			softwareUpdateInstallDeadline=$(/bin/date -v +7d "+%Y-%m-%d")
+			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(/bin/date -v +7d "+%Y-%m-%d")
 			echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
 		fi
+	fi
 
 	######### Notify the User about pending Updates ##########
 	### Edit the forward date (+7d below) to your preferred number of days after which nudging kicks in. ###
@@ -59,7 +61,7 @@ if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 	-windowType utility \
 	-windowPosition ur \
 	-title Updates Available \
-	-description "macOS Updates are available and will start to be installed automatically on or after $softwareUpdateInstallDeadline.
+	-description "macOS Updates are available and will start to be installed automatically on or after "$softwareUpdateInstallDeadline". \
 	You may run any updates that you're notified about prior to the deadline at your convenience." \
 	-alignDescription left \
 	-icon "/System/Library/CoreServices/Software Update.app/Contents/Resources/SoftwareUpdate.icns" \
@@ -74,9 +76,9 @@ if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 	    echo "User chose to defer to a later date, exiting"
 	    exit 0
 	elif [ "$userUpdateChoice" -eq 0 ]; then
-	    if [[ "$OSMajorVersion" -ge 14 && "$CurrentUser" != "root" ]]; then
+	    if [[ "$OSMajorVersion" -ge 14 && "$currentUser" != "root" ]]; then
 			sudo -u "$currentUser" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
-		elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 && "$CurrentUser" != "root" ]]; then
+		elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 && "$currentUser" != "root" ]]; then
 			sudo -u "$currentUser" /usr/bin/open macappstore://showUpdatesPage
 		fi
 	fi
