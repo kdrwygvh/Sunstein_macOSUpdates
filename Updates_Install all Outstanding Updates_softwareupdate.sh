@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env zsh
+#!/usr/bin/env zsh
 
 ### Collecting the logged in user's UserName attribute to sudo as he/she for various commands ###
 
@@ -19,7 +19,7 @@ function presentUserWithUpdateNotification ()
 
 {
 
-"/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
+ "/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
 	-windowType utility \
 	-windowPosition ur \
 	-title "macOS Updates Required" \
@@ -37,32 +37,32 @@ function presentUserWithUpdateNotification ()
 
 if [[ "$OSMajorVersion" -ge 14 && "$CurrentUser" != "root" ]]; then
 
-    presentUserWithUpdateNotification
+ presentUserWithUpdateNotification
 
-    sudo -u "$CurrentUser" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
+ sudo -u "$CurrentUser" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
 
 elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 && "$CurrentUser" != "root" ]]; then
 
-	presentUserWithUpdateNotification
+ presentUserWithUpdateNotification
 
-	sudo -u "$CurrentUser" /usr/bin/open macappstore://showUpdatesPage
+ sudo -u "$CurrentUser" /usr/bin/open macappstore://showUpdatesPage
 fi
 
 if [[ "$CurrentUser" = "root" ]]; then
-	echo "User is not in session, safe to perform all updates and restart now"
-    if [[ "$OSMajorVersion" -ge 14 ]]; then
-    	softwareupdate -i -a -R --verbose
-    elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 ]]; then
-    	/usr/sbin/softwareupdate -l | /usr/bin/grep -i "restart"
-        	if [[ $(/bin/echo "$?") == 1 ]]; then
-				echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
-            	softwareupdate -i -a
-            else
-            	softwareupdate -i -a
-                /usr/local/bin/jamf reboot -immediately -background
-            fi
-    else
-    	echo "macOS Version could not be determined, exiting"
-        exit 1
-    fi
+ echo "User is not in session, safe to perform all updates and restart now"
+ if [[ "$OSMajorVersion" -ge 14 ]]; then
+  softwareupdate -i -a -R --verbose
+ elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 ]]; then
+  /usr/sbin/softwareupdate -l | /usr/bin/grep -i "restart"
+  if [[ $(/bin/echo "$?") == 1 ]]; then
+   echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
+   softwareupdate -i -a
+  else
+   softwareupdate -i -a
+   /usr/local/bin/jamf reboot -immediately -background
+  fi
+ else
+  echo "macOS Version could not be determined, exiting"
+  exit 1
+ fi
 fi

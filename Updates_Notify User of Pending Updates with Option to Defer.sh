@@ -1,8 +1,9 @@
-﻿#!/usr/bin/env zsh
+#!/usr/bin/env zsh
 
 ### Enter your organization's preference domain below ###
 
 companyDomain=$4
+administratorDefinedDeferralinDays=$5
 
 #########################################################
 
@@ -25,39 +26,43 @@ currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{ print $3 }')
 
 #########################################################
 
+### Logic to remove a Software Update Preference if the client is already up to date ###
+
 if [[ ${numberofAvailableUpdates} -eq 0 ]]; then
-
-	echo "Client is Completely up to Date, Exiting"
-	if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
-		echo "Software Update Countdown Timer in Place, Removing"
-		rm -v /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist
-	fi
-
+ echo "Client is Completely up to Date, Exiting"
+ if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
+  echo "Software Update Countdown Timer in Place, Removing"
+  rm -v /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist
+ fi
 fi
+
+########################################################################################
+
+### Logic to set a software update deferral end date based on the sum of an MDM issued deferral and administrator defined deferral ###
 
 if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 
-	if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
-		echo "Software Update Countdown Already in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
-		softwareUpdateInstallDeadline=$(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)
-	else
-		managedDeferredInstallDelay=$(defaults read /Library/Managed\ Preferences/com.apple.SoftwareUpdate ManagedDeferredInstallDelay)
-		if [[ $managedDeferredInstallDelay =~ [[:digit:]] ]]; then
-			softwareUpdateInstallDeadline=$(/bin/date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
-			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(/bin/date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
-			echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
-		else
-			echo "Setting a default user facing deferral date of 7 days as deferral doesn't appear to be managed via MDM"
-			softwareUpdateInstallDeadline=$(/bin/date -v +7d "+%Y-%m-%d")
-			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(/bin/date -v +7d "+%Y-%m-%d")
-			echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
-		fi
-	fi
+ if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
+  echo "Software Update Countdown Already in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
+  softwareUpdateInstallDeadline=$(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)
+ else
+  managedDeferredInstallDelay=$(defaults read /Library/Managed\ Preferences/com.apple.SoftwareUpdate ManagedDeferredInstallDelay)
+  if [[ $managedDeferredInstallDelay =~ [[:digit:]] ]]; then
+   softwareUpdateInstallDeadline=$(/bin/date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
+   defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(/bin/date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
+   echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
+  else
+   echo "Setting a default user facing deferral date of 7 days as deferral doesn't appear to be managed via MDM"
+   softwareUpdateInstallDeadline=$(/bin/date -v +"$administratorDefinedDeferralinDays"d "+%Y-%m-%d")
+   defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(/bin/date -v +7d "+%Y-%m-%d")
+   echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
+  fi
+ fi
 
-	######### Notify the User about pending Updates ##########
-	### Edit the forward date (+7d below) to your preferred number of days after which nudging kicks in. ###
+ ######### Notify the User about pending Updates ##########
+ ### Edit the forward date (+7d below) to your preferred number of days after which nudging kicks in. ###
 
-	userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
+ userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
 	-windowType utility \
 	-windowPosition ur \
 	-title Updates Available \
@@ -69,19 +74,18 @@ if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 	-button1 Update \
 	-button2 Dismiss \
 	-defaultButton 0 \
-	-cancelButton 1
-	)
+	-cancelButton 1 \
+	-timeout 300
+ )
 
-	if [ "$userUpdateChoice" -eq 2 ]; then
-	    echo "User chose to defer to a later date, exiting"
-	    exit 0
-	elif [ "$userUpdateChoice" -eq 0 ]; then
-	    if [[ "$OSMajorVersion" -ge 14 && "$currentUser" != "root" ]]; then
-			sudo -u "$currentUser" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
-		elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 && "$currentUser" != "root" ]]; then
-			sudo -u "$currentUser" /usr/bin/open macappstore://showUpdatesPage
-		fi
-	fi
+ if [ "$userUpdateChoice" -eq 2 ]; then
+  echo "User chose to defer to a later date, exiting"
+  exit 0
+ elif [ "$userUpdateChoice" -eq 0 ]; then
+  if [[ "$OSMajorVersion" -ge 14 && "$currentUser" != "root" ]]; then
+   sudo -u "$currentUser" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
+  elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 && "$currentUser" != "root" ]]; then
+   sudo -u "$currentUser" /usr/bin/open macappstore://showUpdatesPage
+  fi
+ fi
 fi
-
-
