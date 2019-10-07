@@ -36,7 +36,7 @@ if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 	if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
 		echo "Software Update Countdown Already in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
 	else
-		managedDeferredInstallDelay=$(defaults read /Library/Managed\ Preferences/com.apple.SoftwareUpdate ManagedDeferredInstallDelay)
+		managedDeferredInstallDelay=$(defaults read defaults read "/Library/Managed Preferences/com.apple.SoftwareUpdate" ManagedDeferredInstallDelay)
 		if [[ $managedDeferredInstallDelay =~ [[:digit:]] ]]; then
 			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
 			echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
@@ -47,6 +47,3 @@ if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 		fi
 	fi
 fi
-
-/usr/local/bin/jamf recon
-
