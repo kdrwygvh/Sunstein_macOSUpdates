@@ -45,16 +45,21 @@ if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
  if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
   echo "Software Update Countdown Already in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
   softwareUpdateInstallDeadline=$(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)
+  softwareUpdateInstallDeadlineNationalRepresentation=$(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist NationalRepresentationStartDate)
  else
-  managedDeferredInstallDelay=$(defaults read /Library/Managed\ Preferences/com.apple.SoftwareUpdate ManagedDeferredInstallDelay)
+  managedDeferredInstallDelay=$(defaults read "/Library/Managed Preferences/com.apple.SoftwareUpdate" ManagedDeferredInstallDelay)
   if [[ $managedDeferredInstallDelay =~ [[:digit:]] ]]; then
    softwareUpdateInstallDeadline=$(/bin/date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
-   defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(/bin/date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
+   softwareUpdateInstallDeadlineNationalRepresentation=$(/bin/date -v +"$managedDeferredInstallDelay"d "+%A, %B %e")
+   defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate "$softwareUpdateInstallDeadline"
+   defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist NationalRepresentationStartDate "$softwareUpdateInstallDeadlineNationalRepresentation"
    echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
   else
-   echo "Setting a default user facing deferral date of 7 days as deferral doesn't appear to be managed via MDM"
+   echo "Setting the Jamf variable defined deferral as deferral doesn't appear to be managed via MDM"
    softwareUpdateInstallDeadline=$(/bin/date -v +"$administratorDefinedDeferralinDays"d "+%Y-%m-%d")
-   defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(/bin/date -v +7d "+%Y-%m-%d")
+   softwareUpdateInstallDeadlineNationalRepresentation=$(/bin/date -v +"$administratorDefinedDeferralinDays"d "+%A, %B %e")
+   defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate "$softwareUpdateInstallDeadline"
+   defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist NationalRepresentationStartDate "$softwareUpdateInstallDeadlineNationalRepresentation"
    echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
   fi
  fi
@@ -66,7 +71,7 @@ if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 	-windowType utility \
 	-windowPosition ur \
 	-title Updates Available \
-	-description "macOS Updates are available and will start to be installed automatically on or after "$softwareUpdateInstallDeadline". \
+	-description "macOS Updates are available and will start to be installed automatically on or after "$softwareUpdateInstallDeadlineNationalRepresentation". \
 	You may run any updates that you're notified about prior to the deadline at your convenience." \
 	-alignDescription left \
 	-icon "/System/Library/CoreServices/Software Update.app/Contents/Resources/SoftwareUpdate.icns" \

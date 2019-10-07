@@ -3,6 +3,7 @@
 ### Enter your organization's preference domain below ###
 
 companyDomain=$4
+administratorDefinedDeferralinDays=$5
 
 #########################################################
 
@@ -39,10 +40,12 @@ if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 		managedDeferredInstallDelay=$(defaults read defaults read "/Library/Managed Preferences/com.apple.SoftwareUpdate" ManagedDeferredInstallDelay)
 		if [[ $managedDeferredInstallDelay =~ [[:digit:]] ]]; then
 			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
+			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist NationalRepresentationStartDate $(/bin/date -v +"$managedDeferredInstallDelay"d "+%A, %B %e")
 			echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
 		else
-			echo "Setting a default user facing deferral date of 7 days as deferral doesn't appear to be managed via MDM"
-			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(date -v +7d "+%Y-%m-%d")
+			echo "Setting the Jamf variable defined deferral as deferral doesn't appear to be managed via MDM"
+			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate $(/bin/date -v +"$administratorDefinedDeferralinDays"d "+%Y-%m-%d")
+			defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist NationalRepresentationStartDate $(/bin/date -v +"$managedDeferredInstallDelay"d "+%A, %B %e")
 			echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
 		fi
 	fi
