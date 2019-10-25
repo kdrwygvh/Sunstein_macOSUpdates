@@ -3,7 +3,7 @@
 ### Enter your organization's preference domain below ###
 
 companyDomain=$4
-administratorDefinedDeferralinDays=$5
+softwareUpdateGracePeriodinDays=$5
 
 #########################################################
 
@@ -38,50 +38,28 @@ fi
 
 ########################################################################################
 
-### Logic to set a software update deferral end date based on the sum of an MDM issued deferral and administrator defined deferral ###
-
 if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 
- if [[ -f /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist ]]; then
-  echo "Software Update Countdown Already in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
-  softwareUpdateInstallDeadline=$(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)
-  softwareUpdateInstallDeadlineNationalRepresentation=$(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist NationalRepresentationStartDate)
- else
-  managedDeferredInstallDelay=$(defaults read "/Library/Managed Preferences/com.apple.SoftwareUpdate" ManagedDeferredInstallDelay)
-  if [[ $managedDeferredInstallDelay =~ [[:digit:]] ]]; then
-   softwareUpdateInstallDeadline=$(/bin/date -v +"$managedDeferredInstallDelay"d "+%Y-%m-%d")
-   softwareUpdateInstallDeadlineNationalRepresentation=$(/bin/date -v +"$managedDeferredInstallDelay"d "+%A, %B %e")
-   defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate "$softwareUpdateInstallDeadline"
-   defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist NationalRepresentationStartDate "$softwareUpdateInstallDeadlineNationalRepresentation"
-   echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
-  else
-   echo "Setting the Jamf variable defined deferral as deferral doesn't appear to be managed via MDM"
-   softwareUpdateInstallDeadline=$(/bin/date -v +"$administratorDefinedDeferralinDays"d "+%Y-%m-%d")
-   softwareUpdateInstallDeadlineNationalRepresentation=$(/bin/date -v +"$administratorDefinedDeferralinDays"d "+%A, %B %e")
-   defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate "$softwareUpdateInstallDeadline"
-   defaults write /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist NationalRepresentationStartDate "$softwareUpdateInstallDeadlineNationalRepresentation"
-   echo "Software Update Countdown in Place and datestamped $(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist StartDate)"
-  fi
- fi
+softwareUpdateInstallDeadlineNationalRepresentation=$(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist NationalRepresentationStartDate)
 
- ######### Notify the User about pending Updates ##########
- ### Edit the forward date (+7d below) to your preferred number of days after which nudging kicks in. ###
+######### Notify the User about pending Updates ##########
+### Edit the forward date (+7d below) to your preferred number of days after which nudging kicks in. ###
 
- userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
+	userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
 	-windowType utility \
 	-windowPosition ur \
 	-title Updates Available \
-	-description "macOS Updates are available and will start to be installed automatically on or after "$softwareUpdateInstallDeadlineNationalRepresentation". \
-	You may run any updates that you're notified about prior to the deadline at your convenience." \
+	-description "macOS Updates are available as of $softwareUpdateInstallDeadlineNationalRepresentation". \
+	"These updates will start to be auto installed in about $softwareUpdateGracePeriodinDays Days."\
 	-alignDescription left \
 	-icon "/System/Library/CoreServices/Software Update.app/Contents/Resources/SoftwareUpdate.icns" \
-	-iconSize 150 \
-	-button1 Update \
-	-button2 Dismiss \
+	-iconSize 120 \
+	-button1 "Update Now" \
+	-button2 "Dismiss" \
 	-defaultButton 0 \
 	-cancelButton 1 \
 	-timeout 300
- )
+	)
 
  if [ "$userUpdateChoice" -eq 2 ]; then
   echo "User chose to defer to a later date, exiting"
