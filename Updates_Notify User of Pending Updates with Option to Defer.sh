@@ -3,7 +3,7 @@
 ### Enter your organization's preference domain below ###
 
 companyDomain=$4
-softwareUpdateGracePeriodinDays=$5
+macOSSoftwareUpdateGracePeriodinDays=$5
 
 #########################################################
 
@@ -38,19 +38,34 @@ fi
 
 ########################################################################################
 
+### Conditions under which we'll not display the notification ###
+
+if [[ "$currentUser" = "root" ]]; then
+  echo "User is not in session, not bothering with presenting the software update notification this time around"
+  exit 0
+fi
+
+doNotDisturbState=$(sudo -u $currentUser defaults read /Users/$currentUser/Library/Preferences/ByHost/com.apple.notificationcenterui.plist doNotDisturb)
+if [[ ${doNotDisturbState} -eq 1 ]]; then
+  echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
+  exit 0
+fi
+
+########################################################################################
+
 if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
 
-softwareUpdateInstallDeadlineNationalRepresentation=$(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist NationalRepresentationStartDate)
+softwareUpdateInstallWindowNationalRepresentation="$(defaults read /Library/Preferences/$companyDomain.SoftwareUpdatePreferences.plist NationalRepresentationStartDate)"
 
 ######### Notify the User about pending Updates ##########
-### Edit the forward date (+7d below) to your preferred number of days after which nudging kicks in. ###
+### Edit the forward date (+7d below) to your preferred number of days after which software updates will be considered released. ###
 
 	userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
 	-windowType utility \
 	-windowPosition ur \
 	-title Updates Available \
-	-description "macOS Updates are available as of $softwareUpdateInstallDeadlineNationalRepresentation". \
-	"These updates will start to be auto installed in about $softwareUpdateGracePeriodinDays Days."\
+	-description "macOS Updates are available as of $softwareUpdateInstallWindowNationalRepresentation.
+You may update now or later, and you have $macOSSoftwareUpdateGracePeriodinDays days to defer before they are auto installed." \
 	-alignDescription left \
 	-icon "/System/Library/CoreServices/Software Update.app/Contents/Resources/SoftwareUpdate.icns" \
 	-iconSize 120 \
