@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 
-# Title         :Updates_Notify User of Pending Updates with Option to Defer.sh
-# Description   :Update notifications via the jamfHeloper
+# Title         :Updates_Install all Outstanding Updates_softwareupdate.sh
+# Description   :
 # Author        :John Hutchison
 # Date          :2020.04.21
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
@@ -42,24 +42,20 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-
-### Enter your organization's preference domain as a Jamf parameter 4 ###
+### Enter your organization's preference domain as a Jamf parameter
 companyPreferenceDomain=$4
 ##########################################################################################
-### Enter the number length of the flexibility window in days
-macOSSoftwareUpdateGracePeriodinDays=$5
-##########################################################################################
-### Use Custom Self Service Branding for Dialogs as true/false Jamf Parameter $6 ###
-useCustomSelfServiceBranding=$6
+### Use Custom Self Service Branding for Dialogs as true/false Jamf Parameter $5 ###
+useCustomSelfServiceBranding=$5
 ##########################################################################################
 ### Collecting the major.minor version of the host OS
 OSMajorVersion="$(/usr/bin/sw_vers -productVersion | /usr/bin/cut -d '.' -f 2)"
 OSMinorVersion="$(/usr/bin/sw_vers -productVersion | /usr/bin/cut -d '.' -f 3)"
 ##########################################################################################
-### Collecting the number of ramped updates currently available for installation
+### Collecting the number of updates currently available to the host OS
 numberofAvailableUpdates=$(find /Library/Updates -name "???-?????" | grep -c '/')
 ##########################################################################################
-### Collecting current user attributes ###
+### Collecting the logged in user's UserName attribute to sudo as he/she for various commands
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
@@ -76,44 +72,6 @@ if [[ ${numberofAvailableUpdates} -eq 0 ]]; then
   exit 0
 fi
 
-### two conditions for which we'll not display the software update notification
-### if the Mac is at the login window or if the user has enabled 'do not disturb'
-
-if [[ "$currentUser" = "root" ]]; then
-  echo "User is not in session, not bothering with presenting the software update notification this time around"
-  exit 0
-elif [[ "$currentUser" != "root" ]]; then
-  doNotDisturbState="$(defaults read $currentUserHomeDirectoryPath/Library/Preferences/ByHost/com.apple.notificationcenterui.plist doNotDisturb)"
-  if [[ ${doNotDisturbState} -eq 1 ]]; then
-    echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
-    exit 0
-  else
-    echo "Do not disturb is disabled, safe to proceed with software update notification"
-  fi
-fi
-
-# function to do best effort check if using presentation or web conferencing is active
-# function code originally written by bp88 https://github.com/bp88/JSS-Scripts/blob/master/AppleSoftwareUpdate.sh
-
-function checkForDisplaySleepAssertions() {
-    Assertions="$(/usr/bin/pmset -g assertions | /usr/bin/awk '/NoDisplaySleepAssertion | PreventUserIdleDisplaySleep/ && match($0,/\(.+\)/) && ! /coreaudiod/ {gsub(/^\ +/,"",$0); print};')"
-
-    # There are multiple types of power assertions an app can assert.
-    # These specifically tend to be used when an app wants to try and prevent the OS from going to display sleep.
-    # Scenarios where an app may not want to have the display going to sleep include, but are not limited to:
-    #   Presentation (KeyNote, PowerPoint)
-    #   Web conference software (Zoom, Webex)
-    #   Screen sharing session
-    # Apps have to make the assertion and therefore it's possible some apps may not get captured.
-    # Some assertions can be found here: https://developer.apple.com/documentation/iokit/iopmlib_h/iopmassertiontypes
-    if [[ "$Assertions" ]]; then
-        echo "The following display-related power assertions have been detected:"
-        echo "$Assertions"
-        echo "Exiting script to avoid disrupting user while these power assertions are active."
-        exit 0
-    fi
-}
-
 ### Construct the jamfHelper Notification Window
 
 if [[ "$useCustomSelfServiceBranding" = "true" ]]; then
@@ -127,21 +85,18 @@ elif [[ "$useCustomSelfServiceBranding" = "false" ]]; then
 else
   echo "jamfHelper icon branding not set, continuing anyway as the error is purly cosmetic"
 fi
-function softwareUpdateNotification (){
-  DateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist DateMacBecameAwareOfUpdatesNationalRepresentation)"
-  GracePeriodWindowCloseDateNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist GracePeriodWindowCloseDateNationalRepresentation)"
+
+function softwareUpdateNotification(){
   userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
-    -windowType utility \
-    -windowPosition ur \
-    -title "Updates Available" \
-    -description "System Updates are available as of
-"$DateMacBecameAwareOfUpdatesNationalRepresentation"
+		-windowType utility \
+		-windowPosition ur \
+		-title Updates Available \
+		-description "Updates are available which we'd suggest installing today at your earliest opportunity.
 
-You have "$macOSSoftwareUpdateGracePeriodinDays" days to defer before they are auto installed
-
-Auto Installation will start on or about "$GracePeriodWindowCloseDateNationalRepresentation"" \
+You'll be presented with available updates to install after clicking 'Update Now'" \
+    -alignDescription left \
     -icon "$dialogImagePath" \
-    -iconSize 100 \
+    -iconSize 120 \
     -button1 "Update Now" \
     -button2 "Dismiss" \
     -defaultButton 0 \
@@ -150,19 +105,41 @@ Auto Installation will start on or about "$GracePeriodWindowCloseDateNationalRep
   )
 }
 
-softwareUpdateNotification
+### If a user is not logged in, run softwareupdate in one of two ways determined by macOS Version ###
+
+if [[ "$currentUser" = "root" ]]; then
+  echo "User is not in session, safe to perform all updates and restart now"
+  if [[ "$OSMajorVersion" -ge 14 ]]; then
+    softwareupdate -i -a -R --verbose
+    /usr/local/bin/jamf reboot -immediately -background
+  elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 ]]; then
+    /usr/sbin/softwareupdate -l | /usr/bin/grep -i "restart"
+    if [[ $(/bin/echo "$?") == 1 ]]; then
+      echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
+      softwareupdate -i -a
+    else
+      softwareupdate -i -a
+      /usr/local/bin/jamf reboot -immediately -background
+    fi
+  else
+    echo "macOS Version could not be determined, exiting"
+    exit 1
+  fi
+fi
 
 ##########################################################################################
-### User update choice logic. The appropriate software update preference pane will open
-### based on the macOS version
-if [ "$userUpdateChoice" -eq "2" ]; then
-  echo "User chose to defer to a later date, exiting"
-  defaults write /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist UserDeferralDate "$(date "+%Y-%m-%d")"
+### Check the do not disturb state of the current user session. If enabled, we'll skip the notification ###
+doNotDisturbState="$(defaults read $currentUserHomeDirectoryPath/Library/Preferences/ByHost/com.apple.notificationcenterui.plist doNotDisturb)"
+if [[ ${doNotDisturbState} -eq 1 ]]; then
+  echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
   exit 0
-elif [ "$userUpdateChoice" -eq "0" ]; then
-  if [[ "$OSMajorVersion" -ge 14 && "$currentUser" != "root" ]]; then
-    /bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
-  elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 && "$currentUser" != "root" ]]; then
-    sudo -u "$currentUser" /usr/bin/open macappstore://showUpdatesPage
-  fi
+fi
+##########################################################################################
+### If a user is logged in, present the update notification to them
+if [[ "$OSMajorVersion" -ge 14 && "$currentUser" != "root" ]]; then
+  softwareUpdateNotification
+  /bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
+elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 && "$currentUser" != "root" ]]; then
+  softwareUpdateNotification
+  sudo -u "$currentUser" /usr/bin/open macappstore://showUpdatesPage
 fi
