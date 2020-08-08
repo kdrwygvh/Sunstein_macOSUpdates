@@ -42,18 +42,16 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+autoload is-at-least
+
 ### Enter your organization's preference domain as a Jamf parameter
 companyPreferenceDomain=$4
 ##########################################################################################
 ### Use Custom Self Service Branding for Dialogs as true/false Jamf Parameter $5 ###
 useCustomSelfServiceBranding=$5
 ##########################################################################################
-### Collecting the major.minor version of the host OS
-OSMajorVersion="$(/usr/bin/sw_vers -productVersion | /usr/bin/cut -d '.' -f 2)"
-OSMinorVersion="$(/usr/bin/sw_vers -productVersion | /usr/bin/cut -d '.' -f 3)"
-##########################################################################################
 ### Collecting the number of updates currently available to the host OS
-numberofAvailableUpdates=$(find /Library/Updates -name "???-?????" | grep -c '/')
+numberOfCachedUpdates=$(find /Library/Updates -name "???-?????" | grep -c '/')
 ##########################################################################################
 ### Collecting the logged in user's UserName attribute to sudo as he/she for various commands
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
@@ -62,11 +60,11 @@ currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirector
 ##########################################################################################
 
 ### Logic to remove a Software Update release date preference if the client is already up to date
-if [[ ${numberofAvailableUpdates} -eq 0 ]]; then
+if [[ ${numberOfCachedUpdates} -eq 0 ]]; then
   echo "Client is up to date or has not yet cached needed updates, exiting"
   if [[ -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
-    echo "Software Update Grace Period Window Closure Date in Place, Removing"
-    rm -v /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist
+    echo "Flexibiliy window in Place, Removing"
+    rm -fv /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist
   fi
   /usr/local/bin/jamf recon
   exit 0
@@ -109,21 +107,16 @@ You'll be presented with available updates to install after clicking 'Update Now
 
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, safe to perform all updates and restart now"
-  if [[ "$OSMajorVersion" -ge 14 ]]; then
+  currentmacOSVersion=$(sw_vers -productVersion)
+  preferredmacOSVersion="10.14"
+  is-at-least "$preferredmacOSVersion" "$currentmacOSVersion"
+  evaluationResult="$?"
+  if [[ "$evaluationResult" -eq "0" ]]; then
     softwareupdate -i -a -R --verbose
     /usr/local/bin/jamf reboot -immediately -background
-  elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 ]]; then
-    /usr/sbin/softwareupdate -l | /usr/bin/grep -i "restart"
-    if [[ $(/bin/echo "$?") == 1 ]]; then
-      echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
-      softwareupdate -i -a
-    else
-      softwareupdate -i -a
-      /usr/local/bin/jamf reboot -immediately -background
-    fi
-  else
-    echo "macOS Version could not be determined, exiting"
-    exit 1
+  elif [[ "$evaluationResult" -eq "1" ]]; then
+    softwareupdate -i -a --verbose
+    /usr/local/bin/jamf reboot -immediately -background
   fi
 fi
 
@@ -136,10 +129,14 @@ if [[ ${doNotDisturbState} -eq 1 ]]; then
 fi
 ##########################################################################################
 ### If a user is logged in, present the update notification to them
-if [[ "$OSMajorVersion" -ge 14 && "$currentUser" != "root" ]]; then
+currentmacOSVersion=$(sw_vers -productVersion)
+preferredmacOSVersion="10.14"
+is-at-least "$preferredmacOSVersion" "$currentmacOSVersion"
+evaluationResult="$?"
+if [[ "$evaluationResult" -eq "0" ]]; then
   softwareUpdateNotification
   /bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
-elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 && "$currentUser" != "root" ]]; then
+elif [[ "$evaluationResult" -eq "1" ]]; then
   softwareUpdateNotification
   sudo -u "$currentUser" /usr/bin/open macappstore://showUpdatesPage
 fi

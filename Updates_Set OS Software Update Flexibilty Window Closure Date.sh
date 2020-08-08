@@ -3,9 +3,9 @@
 # Title         :Updates_Set OS Software Update Flexibility Window Closure Date.sh
 # Description   :Sets the future date after which user flexibility for OS updates will close
 # Author        :John Hutchison
-# Date          :2020.04.21
+# Date          :2020-08-07
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.0
+# Version       :1.1
 # Notes         :
 # shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
 
@@ -44,14 +44,16 @@
 
 
 ### Enter your organization's preference domain as script parameter $4 ###
-companyPreferenceDomain=$4
+preferenceDomain=$4
 ##########################################################################################
 ### Enter the number of days flexibility a user has to perform their own updates as script parameter $5 ###
 macOSSoftwareUpdateGracePeriodinDays=$5
 ##########################################################################################
-
-### Determine the major macOS version Number ###
-macOSMajorVersion=$(sw_vers -productVersion | awk -F '.' '{print $2}')
+dateMacBecameAwareOfUpdates="$(/bin/date "+%Y-%m-%d")"
+dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B%e")"
+flexibilityWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")"
+flexibilityWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
+softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist"
 ##########################################################################################
 ### Sanity check to ensure that Jamf variables have been set
 if [[ $4 == "" || $5 == "" ]]; then
@@ -63,29 +65,25 @@ fi
 ### readable date formats set for the jamfHelper dialogs
 function setSoftwareUpdateReleaseDate ()
 {
-  defaults write /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
-
-  defaults write /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist numberofAvailableUpdates -int "$numberofAvailableUpdates"
-
-  defaults write /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist DateMacBecameAwareOfUpdates "$(date "+%Y-%m-%d")"
-
-  defaults write /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist DateMacBecameAwareOfUpdatesNationalRepresentation "$(/bin/date "+%A, %B %e")"
-
-  defaults write /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist GracePeriodWindowCloseDate $(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")
-
-  defaults write /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist GracePeriodWindowCloseDateNationalRepresentation "$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
-
-  echo "Software Update Grace Period Window Closure Date in Place and Datestamped $(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist GracePeriodWindowCloseDate)"
+  defaults write $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
+  defaults write $softwareUpdatePreferenceFile numberOfCachedUpdates -int "$numberOfCachedUpdates"
+  defaults write $softwareUpdatePreferenceFile DateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
+  defaults write $softwareUpdatePreferenceFile DateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
+  defaults write $softwareUpdatePreferenceFile GracePeriodWindowCloseDate "$flexibilityWindowClosureDate"
+  defaults write $softwareUpdatePreferenceFile GracePeriodWindowCloseDateNationalRepresentation "$flexibilityWindowClosureDateNationalRepresentation"
+  echo "Software Update Flexibility Window Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile GracePeriodWindowCloseDate)"
 }
 
-### check for the number of ramped updates. If there are none and if there is a flexibility
-### window end date in effect, remove it.
-numberofAvailableUpdates=$(find /Library/Updates -name "???-?????" | grep -c '/')
-if [[ ${numberofAvailableUpdates} -eq 0 ]]; then
+### Check for the number of ramped updates. A ramped update is one that macOS had downloaded
+### and stashed for future installation. If there are no ramped updates and if there is a
+### flexibility window preference in effect, remove it as we require updates to be cached first.
+
+numberOfCachedUpdates=$(find /Library/Updates -name "???-?????" | grep -c '/')
+if [[ ${numberOfCachedUpdates} -eq 0 ]]; then
   echo "Client has updates available but updates have not yet been cached, leaving timer unchanged"
-  if [[ -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
+  if [[ -f /Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist ]]; then
     echo "Software Update Release Date Window preferences are stale, removing"
-    rm -v /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist
+    rm -fv /Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist
     /usr/local/bin/jamf recon
   fi
 fi
@@ -93,17 +91,18 @@ fi
 ### check for the number of ramped updates. If there are any, check how many there are. If
 ### additional updates have been ramped since the last check, reset the flexibility window
 ### end date
-if [[ ${numberofAvailableUpdates} -gt 0 ]]; then
-  if [[ -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
+
+if [[ ${numberOfCachedUpdates} -gt 0 ]]; then
+  if [[ -f /Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist ]]; then
     echo "Software Update Release Date in Place, checking number of available updates against last known number"
-    if [[ ${numberofAvailableUpdates} -gt $(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist numberofAvailableUpdates) ]]; then
-      echo "Additional updates have become available since last check, resetting flexibility window dates"
-      setSoftwareUpdateReleaseDate
+    if [[ ${numberOfCachedUpdates} -gt $(defaults read /Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist numberOfCachedUpdates) ]]; then
+      echo "Additional updates have become available since last check, writing new value out to preference file"
+      defaults write $softwareUpdatePreferenceFile numberOfCachedUpdates -int "$numberOfCachedUpdates"
     fi
-    echo "Flexibility window dates are in place"
+    echo "Flexibility window is in place"
   elif [[ ${macOSSoftwareUpdateGracePeriodinDays} =~ [[:digit:]] ]]; then
     setSoftwareUpdateReleaseDate
   else
-    echo "'$macOSSoftwareUpdateGracePeriodinDays' may not be set to a number, check your variables"
+    echo "'$macOSSoftwareUpdateGracePeriodinDays' is probably not set to an integer, recheck your variables"
   fi
 fi

@@ -5,7 +5,7 @@
 # Author        :John Hutchison
 # Date          :2020.04.21
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.0
+# Version       :1.1
 # Notes         :
 # shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
 
@@ -42,14 +42,16 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+autoload is-at-least
 
 ### Enter your organization's preference domain as a Jamf parameter 4 ###
 companyPreferenceDomain=$4
 ##########################################################################################
-### Enter the number length of the flexibility window in days
+### Enter the length of the flexibility window in days. This should match the flexibility
+### window in days set in Updates_Set OS Software Update Flexibilty Window Closure Date
 macOSSoftwareUpdateGracePeriodinDays=$5
 ##########################################################################################
-### Use Custom Self Service Branding for Dialogs as true/false Jamf Parameter $6 ###
+### Use Custom Self Service Branding for dialogs as true/false Jamf Parameter $6 ###
 useCustomSelfServiceBranding=$6
 ##########################################################################################
 ### Collecting the major.minor version of the host OS
@@ -57,7 +59,7 @@ OSMajorVersion="$(/usr/bin/sw_vers -productVersion | /usr/bin/cut -d '.' -f 2)"
 OSMinorVersion="$(/usr/bin/sw_vers -productVersion | /usr/bin/cut -d '.' -f 3)"
 ##########################################################################################
 ### Collecting the number of ramped updates currently available for installation
-numberofAvailableUpdates=$(find /Library/Updates -name "???-?????" | grep -c '/')
+numberOfCachedUpdates=$(find /Library/Updates -name "???-?????" | grep -c '/')
 ##########################################################################################
 ### Collecting current user attributes ###
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
@@ -65,12 +67,12 @@ currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
 ##########################################################################################
 
-### Logic to remove a Software Update release date preference if the client is already up to date
-if [[ ${numberofAvailableUpdates} -eq 0 ]]; then
+### Logic to remove a flexibility window if the client is already up to date
+if [[ ${numberOfCachedUpdates} -eq 0 ]]; then
   echo "Client is up to date or has not yet cached needed updates, exiting"
   if [[ -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
-    echo "Software Update Grace Period Window Closure Date in Place, Removing"
-    rm -v /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist
+    echo "Flexibility window preference in Place, removing"
+    rm -fv /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist
   fi
   /usr/local/bin/jamf recon
   exit 0
@@ -96,22 +98,22 @@ fi
 # function code originally written by bp88 https://github.com/bp88/JSS-Scripts/blob/master/AppleSoftwareUpdate.sh
 
 function checkForDisplaySleepAssertions() {
-    Assertions="$(/usr/bin/pmset -g assertions | /usr/bin/awk '/NoDisplaySleepAssertion | PreventUserIdleDisplaySleep/ && match($0,/\(.+\)/) && ! /coreaudiod/ {gsub(/^\ +/,"",$0); print};')"
+  Assertions="$(/usr/bin/pmset -g assertions | /usr/bin/awk '/NoDisplaySleepAssertion | PreventUserIdleDisplaySleep/ && match($0,/\(.+\)/) && ! /coreaudiod/ {gsub(/^\ +/,"",$0); print};')"
 
-    # There are multiple types of power assertions an app can assert.
-    # These specifically tend to be used when an app wants to try and prevent the OS from going to display sleep.
-    # Scenarios where an app may not want to have the display going to sleep include, but are not limited to:
-    #   Presentation (KeyNote, PowerPoint)
-    #   Web conference software (Zoom, Webex)
-    #   Screen sharing session
-    # Apps have to make the assertion and therefore it's possible some apps may not get captured.
-    # Some assertions can be found here: https://developer.apple.com/documentation/iokit/iopmlib_h/iopmassertiontypes
-    if [[ "$Assertions" ]]; then
-        echo "The following display-related power assertions have been detected:"
-        echo "$Assertions"
-        echo "Exiting script to avoid disrupting user while these power assertions are active."
-        exit 0
-    fi
+  # There are multiple types of power assertions an app can assert.
+  # These specifically tend to be used when an app wants to try and prevent the OS from going to display sleep.
+  # Scenarios where an app may not want to have the display going to sleep include, but are not limited to:
+  #   Presentation (KeyNote, PowerPoint)
+  #   Web conference software (Zoom, Webex)
+  #   Screen sharing session
+  # Apps have to make the assertion and therefore it's possible some apps may not get captured.
+  # Some assertions can be found here: https://developer.apple.com/documentation/iokit/iopmlib_h/iopmassertiontypes
+  if [[ "$Assertions" ]]; then
+    echo "The following display-related power assertions have been detected:"
+    echo "$Assertions"
+    echo "Exiting script to avoid disrupting user while these power assertions are active."
+    exit 0
+  fi
 }
 
 ### Construct the jamfHelper Notification Window
@@ -139,7 +141,7 @@ function softwareUpdateNotification (){
 
 You have "$macOSSoftwareUpdateGracePeriodinDays" days to defer before they are auto installed
 
-Auto Installation will start on or about "$GracePeriodWindowCloseDateNationalRepresentation"" \
+    Auto Installation will start on or about "$GracePeriodWindowCloseDateNationalRepresentation"" \
     -icon "$dialogImagePath" \
     -iconSize 100 \
     -button1 "Update Now" \
@@ -160,9 +162,13 @@ if [ "$userUpdateChoice" -eq "2" ]; then
   defaults write /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist UserDeferralDate "$(date "+%Y-%m-%d")"
   exit 0
 elif [ "$userUpdateChoice" -eq "0" ]; then
-  if [[ "$OSMajorVersion" -ge 14 && "$currentUser" != "root" ]]; then
+  currentmacOSVersion=$(sw_vers -productVersion)
+  preferredmacOSVersion="10.14"
+  is-at-least "$preferredmacOSVersion" "$currentmacOSVersion"
+  evaluationResult="$?"
+  if [[ "$evaluationResult" -eq "0" ]]; then
     /bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
-  elif [[ "$OSMajorVersion" -ge 8 ]] && [[ "$OSMajorVersion" -le 13 && "$currentUser" != "root" ]]; then
+  elif [[ "$evaluationResult" -eq "1" ]]; then
     sudo -u "$currentUser" /usr/bin/open macappstore://showUpdatesPage
   fi
 fi
