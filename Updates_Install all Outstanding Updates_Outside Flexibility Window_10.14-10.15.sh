@@ -6,7 +6,7 @@
 # Date          :2021-01-05
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
 # Version       :1.1
-# Notes         :Updated for Big Sur compatibility. Support for High Sierra Removed
+# Notes         :Updated for compatibility with Big Sur. Support for High Sierra removed
 # shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
 
 # The Clear BSD License
@@ -54,7 +54,7 @@ currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
 ##########################################################################################
 ### Logic to remove a Software Update release date preference if the client is already up to date
-if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate LastUpdatesAvailable)" -eq "0" ]]; then
+if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist LastUpdatesAvailable)" -eq "0" ]]; then
   echo "Client is up to date or has not yet cached needed updates, exiting"
   if [[ -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
     echo "Flexibiliy window in Place, Removing"
@@ -76,7 +76,7 @@ elif [[ "$useCustomSelfServiceBranding" = "false" ]]; then
     dialogImagePath="/Applications/App Store.app/Contents/Resources/AppIcon.icns"
   fi
 else
-  echo "jamfHelper icon branding not set, continuing anyway as the error is purly cosmetic"
+  echo "jamfHelper icon branding not set, continuing anyway as the error is cosmetic in nature"
 fi
 
 function softwareUpdateNotification(){
@@ -86,7 +86,7 @@ function softwareUpdateNotification(){
 		-title Updates Available \
 		-description "Updates are available which we'd suggest installing today at your earliest opportunity.
 
-You'll be presented with available updates to install after clicking 'Update Now'" \
+    You'll be presented with available updates to install after clicking 'Update Now'" \
     -alignDescription left \
     -icon "$dialogImagePath" \
     -iconSize 120 \
@@ -99,7 +99,7 @@ You'll be presented with available updates to install after clicking 'Update Now
 }
 
 ##########################################################################################
-### If a user is not logged in, run softwareupdate ###
+### If a user is not logged in, run softwareupdate in one of two ways determined by macOS Version ###
 ##########################################################################################
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, safe to perform all updates and restart now"
@@ -107,8 +107,10 @@ if [[ "$currentUser" = "root" ]]; then
   /usr/local/bin/jamf reboot -immediately -background
   exit 0
 fi
+
 ##########################################################################################
 ### Check the do not disturb state of the current user session. If enabled, we'll skip the notification ###
+##########################################################################################
 doNotDisturbState="$(defaults read $currentUserHomeDirectoryPath/Library/Preferences/ByHost/com.apple.notificationcenterui.plist doNotDisturb)"
 if [[ ${doNotDisturbState} -eq 1 ]]; then
   echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"

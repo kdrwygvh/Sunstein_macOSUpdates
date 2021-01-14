@@ -53,7 +53,7 @@ jamfManagementURL=$(defaults read /Library/Preferences/com.jamfsoftware.jamf jss
 jamfAuthorizationBase64="$(printf "$jamfAPIAccount:$jamfAPIPassword" | iconv -t ISO-8859-1 | base64 -i -)"
 jamfComputerID=$(curl -H 'Content-Type: application/xml' -H "Authorization: Basic $jamfAuthorizationBase64" ""$jamfManagementURL"JSSResource/computers/udid/$hardwareUUID/subset/General" | xmllint --xpath "string(//id)" -)
 
-## POST Software Update MDM Command. Will only work on ABM enrolled devices.
+## POST Software Update MDM Command. Will only work on ABM enrolled or Big Sur Devices with a UAMDM profile
 curl -s -f -X "POST" "$jamfManagementURL/JSSResource/computercommands/command/ScheduleOSUpdate/action/install/id/$jamfComputerID" \
 		 -H "Authorization: Basic $jamfAuthorizationBase64" \
 		 -H 'Cache-Control: no-cache'

@@ -3,9 +3,9 @@
 # Title         :Updates_OS Automatic Software Update Configuration_Inside Flexibility Window.sh
 # Description   :
 # Author        :John Hutchison
-# Date          :2020.04.21
+# Date          :2021-01-05
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.0
+# Version       :1.1
 # Notes         :
 # shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
 
