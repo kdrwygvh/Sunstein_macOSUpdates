@@ -50,7 +50,7 @@ preferenceDomain=$4
 macOSSoftwareUpdateGracePeriodinDays=$5
 ##########################################################################################
 dateMacBecameAwareOfUpdates="$(/bin/date "+%Y-%m-%d")"
-dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B%e")"
+dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B %e")"
 flexibilityWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")"
 flexibilityWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist"
