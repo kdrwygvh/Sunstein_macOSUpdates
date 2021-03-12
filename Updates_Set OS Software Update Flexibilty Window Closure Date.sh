@@ -66,16 +66,19 @@ fi
 function setSoftwareUpdateReleaseDate ()
 {
   defaults write $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
-  defaults write $softwareUpdatePreferenceFile DateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
-  defaults write $softwareUpdatePreferenceFile DateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
-  defaults write $softwareUpdatePreferenceFile GracePeriodWindowCloseDate "$flexibilityWindowClosureDate"
-  defaults write $softwareUpdatePreferenceFile GracePeriodWindowCloseDateNationalRepresentation "$flexibilityWindowClosureDateNationalRepresentation"
-  echo "Software Update Flexibility Window Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile GracePeriodWindowCloseDate)"
+  if [[ "$(defaults read $softwareUpdatePreferenceFile GracePeriodWindowCloseDate)" = "") ]]; then
+		defaults write $softwareUpdatePreferenceFile DateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
+		defaults write $softwareUpdatePreferenceFile DateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
+		defaults write $softwareUpdatePreferenceFile GracePeriodWindowCloseDate "$flexibilityWindowClosureDate"
+		defaults write $softwareUpdatePreferenceFile GracePeriodWindowCloseDateNationalRepresentation "$flexibilityWindowClosureDateNationalRepresentation"
+  	echo "New Software Update Flexibility Window Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile GracePeriodWindowCloseDate)"
+  else
+  	echo "Software Update Flexibility is already in place, continuing..."
+  fi
 }
 
-### Check for the number of ramped updates. A ramped update is one that macOS had downloaded
-### and stashed for future installation. If there are no ramped updates and if there is a
-### flexibility window preference in effect, remove it as we require updates to be cached first.
+### Check for the number of available updates. If none are found, assume the current
+### timers are stale and remove them
 ##########################################################################################
 if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate LastUpdatesAvailable)" -eq "0" ]]; then
   echo "Client seems to be up to date"
@@ -86,9 +89,6 @@ if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate LastUpdates
   fi
 fi
 
-### check for the number of ramped updates. If there are any, check how many there are. If
-### additional updates have been ramped since the last check, reset the flexibility window
-### end date
 ##########################################################################################
 if [[ ${macOSSoftwareUpdateGracePeriodinDays} =~ [[:digit:]] ]]; then
   setSoftwareUpdateReleaseDate

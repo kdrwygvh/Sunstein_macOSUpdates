@@ -103,9 +103,7 @@ You'll be presented with available updates to install after clicking 'Update Now
 ##########################################################################################
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, safe to perform all updates and restart now"
-  softwareupdate -i -a -R --verbose
-  /usr/local/bin/jamf reboot -immediately -background
-  exit 0
+  softwareupdate --install --all --restart --verbose
 fi
 ##########################################################################################
 ### Check the do not disturb state of the current user session. If enabled, we'll skip the notification ###
