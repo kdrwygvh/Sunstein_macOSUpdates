@@ -66,7 +66,7 @@ fi
 function setSoftwareUpdateReleaseDate ()
 {
   defaults write $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
-  if [[ "$(defaults read $softwareUpdatePreferenceFile GracePeriodWindowCloseDate)" = "") ]]; then
+  if [[ "$(defaults read $softwareUpdatePreferenceFile GracePeriodWindowCloseDate)" = "" ]]; then
 		defaults write $softwareUpdatePreferenceFile DateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
 		defaults write $softwareUpdatePreferenceFile DateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
 		defaults write $softwareUpdatePreferenceFile GracePeriodWindowCloseDate "$flexibilityWindowClosureDate"
