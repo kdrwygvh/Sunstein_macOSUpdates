@@ -49,5 +49,5 @@ companyPreferenceDomain=com.company
 if [[ ! -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
 	echo "<result>None</result>"
 else
-	echo "<result>$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist DateMacBecameAwareOfUpdates)</result>"
+	echo "<result>$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist dateMacBecameAwareOfUpdates)</result>"
 fi

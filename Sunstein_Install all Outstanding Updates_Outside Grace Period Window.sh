@@ -3,9 +3,9 @@
 # Title         :Updates_Install all Outstanding Updates_softwareupdate.sh
 # Description   :
 # Author        :John Hutchison
-# Date          :2021-01-05
+# Date          :2021-03-25
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.1
+# Version       :1.2.1
 # Notes         :Updated for Big Sur compatibility. Support for High Sierra Removed
 # shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
 
@@ -42,11 +42,14 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+# Jamf Pro Usage
+# Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with "more than" the number of days you're specifying as the grace period duration.
+
 ### Enter your organization's preference domain as a Jamf parameter
 companyPreferenceDomain=$4
 ##########################################################################################
 ### Use Custom Self Service Branding for Dialogs as true/false Jamf Parameter $5 ###
-useCustomSelfServiceBranding=$5
+customBrandingImagePath=$5
 ##########################################################################################
 ### Collecting the logged in user's UserName attribute to sudo as he/she for various commands
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
@@ -57,7 +60,7 @@ currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirector
 if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate LastUpdatesAvailable)" -eq "0" ]]; then
   echo "Client is up to date or has not yet cached needed updates, exiting"
   if [[ -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
-    echo "Flexibiliy window in Place, Removing"
+    echo "Grace Period window in Place, Removing"
     rm -fv /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist
   fi
   /usr/local/bin/jamf recon
@@ -67,9 +70,9 @@ fi
 ##########################################################################################
 ### Construct the jamfHelper Notification Window
 ##########################################################################################
-if [[ "$useCustomSelfServiceBranding" = "true" ]]; then
-  dialogImagePath="$currentUserHomeDirectoryPath/Library/Application Support/com.jamfsoftware.selfservice.mac/Documents/Images/brandingimage.png"
-elif [[ "$useCustomSelfServiceBranding" = "false" ]]; then
+if [[ "$customBrandingImagePath" != "" ]]; then
+  dialogImagePath="$customBrandingImagePath"
+elif [[ "$customBrandingImagePath" = "" ]]; then
   if [[ -f "/System/Library/CoreServices/Software Update.app/Contents/Resources/SoftwareUpdate.icns" ]]; then
     dialogImagePath="/System/Library/CoreServices/Software Update.app/Contents/Resources/SoftwareUpdate.icns"
   else
@@ -91,7 +94,6 @@ You'll be presented with available updates to install after clicking 'Update Now
     -icon "$dialogImagePath" \
     -iconSize 120 \
     -button1 "Update Now" \
-    -button2 "Dismiss" \
     -defaultButton 0 \
     -cancelButton 1 \
     -timeout 300
@@ -102,8 +104,14 @@ You'll be presented with available updates to install after clicking 'Update Now
 ### If a user is not logged in, run softwareupdate ###
 ##########################################################################################
 if [[ "$currentUser" = "root" ]]; then
-  echo "User is not in session, safe to perform all updates and restart now"
-  softwareupdate --install --all --restart --verbose
+  echo "User is not in session, safe to perform all updates and restart now if required"
+  numberofUpdatesRequringRestart="$(/usr/sbin/softwareupdate -l | /usr/bin/grep -i -c 'restart')"
+  if [[ "$numberofUpdatesRequringRestart" -eq 0 ]]; then
+		echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
+    softwareupdate --install --all --verbose
+  elif [[ "$numberofUpdatesRequringRestart" -ge 1 ]]; then
+  	echo "Updates found which require restart. Installing and restarting..."
+  	softwareupdate --install --all --restart --verbose
 fi
 ##########################################################################################
 ### Check the do not disturb state of the current user session. If enabled, we'll skip the notification ###
@@ -115,4 +123,7 @@ fi
 ##########################################################################################
 ### If a user is logged in, present the update notification to them
 softwareUpdateNotification
+if [[ $(pgrep "System Preferences") != "" ]]; then
+		killall "System Preferences"
+fi
 /bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"

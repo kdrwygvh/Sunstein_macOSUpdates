@@ -3,9 +3,9 @@
 # Title         :Updates_Set OS Software Update Flexibility Window Closure Date.sh
 # Description   :Sets the future date after which user flexibility for OS updates will close
 # Author        :John Hutchison
-# Date          :2020-08-07
+# Date          :2021-03-25
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.1
+# Version       :1.2.1
 # Notes         :
 # shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
 
@@ -51,8 +51,8 @@ macOSSoftwareUpdateGracePeriodinDays=$5
 ##########################################################################################
 dateMacBecameAwareOfUpdates="$(/bin/date "+%Y-%m-%d")"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B %e")"
-flexibilityWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")"
-flexibilityWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
+gracePeriodWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")"
+gracePeriodWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist"
 ##########################################################################################
 ### Sanity check to ensure that Jamf variables have been set
@@ -67,10 +67,10 @@ function setSoftwareUpdateReleaseDate ()
 {
   defaults write $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
   if [[ "$(defaults read $softwareUpdatePreferenceFile GracePeriodWindowCloseDate)" = "" ]]; then
-		defaults write $softwareUpdatePreferenceFile DateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
-		defaults write $softwareUpdatePreferenceFile DateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
-		defaults write $softwareUpdatePreferenceFile GracePeriodWindowCloseDate "$flexibilityWindowClosureDate"
-		defaults write $softwareUpdatePreferenceFile GracePeriodWindowCloseDateNationalRepresentation "$flexibilityWindowClosureDateNationalRepresentation"
+		defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
+		defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
+		defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDate "$gracePeriodWindowClosureDate"
+		defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDateNationalRepresentation "$gracePeriodWindowClosureDateNationalRepresentation"
   	echo "New Software Update Flexibility Window Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile GracePeriodWindowCloseDate)"
   else
   	echo "Software Update Flexibility is already in place, continuing..."

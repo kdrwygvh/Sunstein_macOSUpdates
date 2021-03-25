@@ -1,6 +1,6 @@
 #!/usr/bin/env zsh
 
-# Title         :Updates_OS Automatic Software Update Configuration_Inside Flexibility Window.sh
+# Title         :Updates_OS Automatic Software Update Configuration_Outside Flexibility Window.sh
 # Description   :
 # Author        :John Hutchison
 # Date          :2021-01-05
@@ -42,11 +42,14 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-defaults write /Library/Preferences/com.apple.commerce.plist AutoUpdate -bool false
-defaults write /Library/Preferences/com.apple.commerce.plist AutoUpdateRestartRequired -bool false
+# Jamf Pro Usage
+# Attach this script to your policy which presents the Inside Grace Period Window Notification
+# Alternately, create an MDM configuration profile scoped to clients within the Grace Period Window.
+
+defaults write /Library/Preferences/com.apple.commerce.plist AutoUpdate -bool true
+defaults write /Library/Preferences/com.apple.commerce.plist AutoUpdateRestartRequired -bool true
 defaults write /Library/Preferences/com.apple.SoftwareUpdate.plist AutomaticCheckEnabled -bool true
 defaults write /Library/Preferences/com.apple.SoftwareUpdate.plist ConfigDataInstall -bool true
-defaults write /Library/Preferences/com.apple.SoftwareUpdate.plist CriticalUpdateInstall -bool false
+defaults write /Library/Preferences/com.apple.SoftwareUpdate.plist CriticalUpdateInstall -bool true
 defaults write /Library/Preferences/com.apple.SoftwareUpdate.plist AutomaticDownload -bool true
-defaults write /Library/Preferences/com.apple.SoftwareUpdate.plist AutomaticallyInstallMacOSUpdates -bool false
-
+defaults write /Library/Preferences/com.apple.SoftwareUpdate.plist AutomaticallyInstallMacOSUpdates -bool true

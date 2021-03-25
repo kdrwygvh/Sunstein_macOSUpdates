@@ -3,9 +3,9 @@
 # Title         :Updates_Notify User of Pending Updates with Option to Defer.sh
 # Description   :Update notifications via the jamfHeloper
 # Author        :John Hutchison
-# Date          :2021-01-05
+# Date          :2021-03-25
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.2
+# Version       :1.2.1
 # Notes         :Updated for compatibility with Big Sur. Support for High Sierra removed
 # shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
 
@@ -29,7 +29,7 @@
 #      contributors may be used to endorse or promote products derived from this
 #      software without specific prior written permission.
 #
-# NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY\'S PATENT RIGHTS ARE GRANTED BY
+# NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
 # THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
 # CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -42,6 +42,9 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+# Jamf Pro Usage
+# Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with "less than" the number of days you're specifying as the grace period duration.
+
 ### Enter your organization's preference domain as a Jamf parameter 4 ###
 companyPreferenceDomain=$4
 ##########################################################################################
@@ -50,7 +53,7 @@ companyPreferenceDomain=$4
 macOSSoftwareUpdateGracePeriodinDays=$5
 ##########################################################################################
 ### Use Custom Self Service Branding for dialogs as true/false Jamf Parameter $6 ###
-useCustomSelfServiceBranding=$6
+customBrandingImagePath=$6
 ##########################################################################################
 ### Collecting current user attributes ###
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
@@ -85,9 +88,9 @@ elif [[ "$currentUser" != "root" ]]; then
 fi
 ##########################################################################################
 ### Construct the jamfHelper Notification Window
-if [[ "$useCustomSelfServiceBranding" = "true" ]]; then
-  dialogImagePath="$currentUserHomeDirectoryPath/Library/Application Support/com.jamfsoftware.selfservice.mac/Documents/Images/brandingimage.png"
-elif [[ "$useCustomSelfServiceBranding" = "false" ]]; then
+if [[ "$customBrandingImagePath" != "" ]]; then
+  dialogImagePath="$customBrandingImagePath"
+elif [[ "$customBrandingImagePath" = "" ]]; then
   if [[ -f "/System/Library/CoreServices/Software Update.app/Contents/Resources/SoftwareUpdate.icns" ]]; then
     dialogImagePath="/System/Library/CoreServices/Software Update.app/Contents/Resources/SoftwareUpdate.icns"
   else
@@ -97,18 +100,18 @@ else
   echo "jamfHelper icon branding not set, continuing anyway as the error is purly cosmetic"
 fi
 function softwareUpdateNotification (){
-  DateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist DateMacBecameAwareOfUpdatesNationalRepresentation)"
-  GracePeriodWindowCloseDateNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist GracePeriodWindowCloseDateNationalRepresentation)"
+  dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist dateMacBecameAwareOfUpdatesNationalRepresentation)"
+  gracePeriodWindowCloseDateNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist gracePeriodWindowCloseDateNationalRepresentation)"
   userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
     -windowType utility \
     -windowPosition ur \
     -title "Updates Available" \
     -description "System Updates are available as of
-"$DateMacBecameAwareOfUpdatesNationalRepresentation"
+"$dateMacBecameAwareOfUpdatesNationalRepresentation"
 
 You have "$macOSSoftwareUpdateGracePeriodinDays" days to defer before they are auto installed
 
-Auto Installation will start on or about "$GracePeriodWindowCloseDateNationalRepresentation"" \
+Auto Installation will start on or about "$gracePeriodWindowCloseDateNationalRepresentation"" \
     -icon "$dialogImagePath" \
     -iconSize 100 \
     -button1 "Update Now" \
@@ -128,5 +131,8 @@ if [ "$userUpdateChoice" -eq "2" ]; then
   defaults write /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist UserDeferralDate "$(date "+%Y-%m-%d")"
   exit 0
 elif [ "$userUpdateChoice" -eq "0" ]; then
+	if [[ $(pgrep "System Preferences") != "" ]]; then
+		killall "System Preferences"
+	fi
 	/bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
 fi

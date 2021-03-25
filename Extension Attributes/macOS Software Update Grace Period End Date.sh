@@ -49,5 +49,5 @@ companyPreferenceDomain=com.company
 if [[ ! -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
 	echo "<result>None</result>"
 else
-	echo "<result>$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist GracePeriodWindowCloseDate)</result>"
+	echo "<result>$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist gracePeriodWindowCloseDate)</result>"
 fi
