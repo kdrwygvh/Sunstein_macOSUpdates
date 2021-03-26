@@ -89,7 +89,7 @@ function softwareUpdateNotification(){
 		-title Updates Available \
 		-description "Updates are available which we'd suggest installing today at your earliest opportunity.
 
-You'll be presented with available updates to install after clicking 'Update Now'" \
+    You'll be presented with available updates to install after clicking 'Update Now'" \
     -alignDescription left \
     -icon "$dialogImagePath" \
     -iconSize 120 \
@@ -107,11 +107,12 @@ if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, safe to perform all updates and restart now if required"
   numberofUpdatesRequringRestart="$(/usr/sbin/softwareupdate -l | /usr/bin/grep -i -c 'restart')"
   if [[ "$numberofUpdatesRequringRestart" -eq 0 ]]; then
-		echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
+    echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
     softwareupdate --install --all --verbose
   elif [[ "$numberofUpdatesRequringRestart" -ge 1 ]]; then
-  	echo "Updates found which require restart. Installing and restarting..."
-  	softwareupdate --install --all --restart --verbose
+    echo "Updates found which require restart. Installing and restarting..."
+    softwareupdate --install --all --restart --verbose
+  fi
 fi
 ##########################################################################################
 ### Check the do not disturb state of the current user session. If enabled, we'll skip the notification ###
@@ -124,6 +125,6 @@ fi
 ### If a user is logged in, present the update notification to them
 softwareUpdateNotification
 if [[ $(pgrep "System Preferences") != "" ]]; then
-		killall "System Preferences"
+  killall "System Preferences"
 fi
 /bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
