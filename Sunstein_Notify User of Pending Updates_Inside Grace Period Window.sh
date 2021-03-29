@@ -111,7 +111,8 @@ function softwareUpdateNotification (){
 
 You have "$macOSSoftwareUpdateGracePeriodinDays" days to defer before they are auto installed
 
-Auto Installation will start on or about "$gracePeriodWindowCloseDateNationalRepresentation"" \
+Auto Installation will start on or about
+"$gracePeriodWindowCloseDateNationalRepresentation"" \
     -icon "$dialogImagePath" \
     -iconSize 100 \
     -button1 "Update Now" \
