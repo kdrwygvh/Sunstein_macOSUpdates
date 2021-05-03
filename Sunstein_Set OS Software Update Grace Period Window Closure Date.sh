@@ -63,7 +63,7 @@ fi
 
 ### Function to set the flexibility window open and close dates with both parsable and human
 ### readable date formats set for the jamfHelper dialogs
-function setSoftwareUpdateReleaseDate ()
+setSoftwareUpdateReleaseDate ()
 {
   defaults write $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
   if [[ "$(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)" = "" ]]; then
@@ -87,6 +87,7 @@ if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate LastUpdates
     rm -fv /Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist
     /usr/local/bin/jamf recon
   fi
+	exit 0
 fi
 
 ##########################################################################################

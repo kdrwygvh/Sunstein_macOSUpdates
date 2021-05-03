@@ -67,6 +67,12 @@ if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate LastUpdates
   exit 0
 fi
 
+if [[ ! -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
+	echo "Software Update Preferences not yet un place, bailing for now"
+	/usr/local/bin/jamf recon
+	exit 0
+fi
+
 ##########################################################################################
 ### Construct the jamfHelper Notification Window
 ##########################################################################################

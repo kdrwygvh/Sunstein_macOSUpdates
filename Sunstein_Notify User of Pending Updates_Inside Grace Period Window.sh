@@ -70,6 +70,12 @@ if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist LastU
   /usr/local/bin/jamf recon
   exit 0
 fi
+
+if [[ ! -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
+	echo "Software Update Preferences not yet un place, bailing for now"
+	/usr/local/bin/jamf recon
+	exit 0
+fi
 ##########################################################################################
 ### two conditions for which we'll not display the software update notification
 ### if the Mac is at the login window or if the user has enabled 'do not disturb'
@@ -99,7 +105,7 @@ elif [[ "$customBrandingImagePath" = "" ]]; then
 else
   echo "jamfHelper icon branding not set, continuing anyway as the error is purly cosmetic"
 fi
-function softwareUpdateNotification (){
+softwareUpdateNotification (){
   dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist dateMacBecameAwareOfUpdatesNationalRepresentation)"
   gracePeriodWindowCloseDateNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist gracePeriodWindowCloseDateNationalRepresentation)"
   userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
