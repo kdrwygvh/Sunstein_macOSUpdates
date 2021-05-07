@@ -57,13 +57,18 @@ softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorOSSoft
 majorOSUpgradeID="$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist LastRecommendedMajorOSBundleIdentifier | awk -F '.' '{print $4}')"
 ##########################################################################################
 ### Sanity check to ensure that Jamf variables have been set
-if [[ $4 == "" || $5 == "" ]]; then
-  echo "Jamf variables 4 or 5 are not defined as part of the currently running policy, bailing"
-  exit 1
+if [[ "$preferenceDomain"= "" ]]; then
+	echo "Preference Domain not set as a jamf variable, bailing"
+	exit 2
+sh
+if [[ "$macOSSoftwareUpdateGracePeriodinDays"= "" ]]; then
+	echo "Grace Period not set as a jamf variable, bailing"
+	exit 2
 fi
 
 ### Function to set the flexibility window open and close dates with both parsable and human
 ### readable date formats set for the jamfHelper dialogs
+
 setSoftwareUpdateReleaseDate ()
 
 {
@@ -82,7 +87,7 @@ setSoftwareUpdateReleaseDate ()
 
 ### Check for the number of available updates. If none are found, assume the current
 ### timers are stale and remove them
-##########################################################################################
+
 if [[ "$majorOSUpgradeID" = "" ]]; then
   echo "Client seems to be up to date"
   if [[ -f /Library/Preferences/$preferenceDomain.majorOSSoftwareUpdatePreferences.plist ]]; then
@@ -91,11 +96,6 @@ if [[ "$majorOSUpgradeID" = "" ]]; then
     /usr/local/bin/jamf recon
   fi
   exit 0
-fi
-
-##########################################################################################
-if [[ ${macOSSoftwareUpdateGracePeriodinDays} =~ [[:digit:]] ]]; then
-  setSoftwareUpdateReleaseDate
 else
-  echo "'$macOSSoftwareUpdateGracePeriodinDays' is probably not set to an integer, recheck your variables"
+	setSoftwareUpdateReleaseDate
 fi
