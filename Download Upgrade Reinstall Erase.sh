@@ -64,7 +64,7 @@
 # $5 -eq Preferred Installer Version (e.g. 16.5.01)
 # $6 -eq Installer Download Version from Apple CDN (e.g. 11.3)
 # $7 -eq Installer Download Jamf Event (10.14 and Prior)
-# $8 -eq Install Action (upgrade, reinstall, erase)
+# $8 -eq Install Action (downloadonly, upgrade, reinstall, erase)
 # $9 -eq Suppress all Notifications (true/false)
 # $10 -eq Custom Logo Path for Notifications
 # $11 -eq Perform Network Link Evaluation (true/false)
