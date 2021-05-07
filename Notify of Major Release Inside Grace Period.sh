@@ -1,11 +1,11 @@
 #!/usr/bin/env zsh
 
-# Title         :Updates_Notify User of Pending Updates with Option to Defer.sh
+# Title         :Updates_Notify User of Pending Major OS Updates with Option to Defer.sh
 # Description   :Update notifications via the jamfHeloper
 # Author        :John Hutchison
-# Date          :2021-03-25
+# Date          :2021-04-02
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.2.1
+# Version       :1.0
 # Notes         :Updated for compatibility with Big Sur. Support for High Sierra removed
 # shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
 
@@ -55,26 +55,23 @@ macOSSoftwareUpdateGracePeriodinDays=$5
 ### Use Custom Self Service Branding for dialogs as true/false Jamf Parameter $6 ###
 customBrandingImagePath=$6
 ##########################################################################################
+### Jamf Custom Event Name to Trigger a Major OS Software update
+majorOSUpdateEvent=$7
+##########################################################################################
 ### Collecting current user attributes ###
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
 ##########################################################################################
-### Logic to remove a flexibility window if the client is already up to date
-if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist LastUpdatesAvailable)" -eq 0 ]]; then
+### Logic to remove a grace period window if the client is already up to date
+if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist LastRecommendedMajorOSBundleIdentifier)" = "" ]]; then
   echo "Client is up to date, exiting"
-  if [[ -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
+  if [[ -f /Library/Preferences/$companyPreferenceDomain.majorOSSoftwareUpdatePreferences.plist ]]; then
     echo "Flexibility window preference in Place, removing"
-    rm -fv /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist
+    rm -fv /Library/Preferences/$companyPreferenceDomain.majorOSSoftwareUpdatePreferences.plist
   fi
   /usr/local/bin/jamf recon
   exit 0
-fi
-
-if [[ ! -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
-	echo "Software Update Preferences not yet un place, bailing for now"
-	/usr/local/bin/jamf recon
-	exit 0
 fi
 ##########################################################################################
 ### two conditions for which we'll not display the software update notification
@@ -106,8 +103,8 @@ else
   echo "jamfHelper icon branding not set, continuing anyway as the error is purly cosmetic"
 fi
 softwareUpdateNotification (){
-  dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist dateMacBecameAwareOfUpdatesNationalRepresentation)"
-  gracePeriodWindowCloseDateNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist gracePeriodWindowCloseDateNationalRepresentation)"
+  dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.majorOSSoftwareUpdatePreferences.plist dateMacBecameAwareOfUpdatesNationalRepresentation)"
+  gracePeriodWindowCloseDateNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.majorOSSoftwareUpdatePreferences.plist gracePeriodWindowCloseDateNationalRepresentation)"
   userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
     -windowType utility \
     -windowPosition ur \
@@ -130,16 +127,14 @@ Auto Installation will start on or about
 }
 
 softwareUpdateNotification
+
 ##########################################################################################
 ### User update choice logic. The appropriate software update preference pane will open
 ### based on the macOS version
 if [ "$userUpdateChoice" -eq "2" ]; then
   echo "User chose to defer to a later date, exiting"
-  defaults write /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist UserDeferralDate "$(date "+%Y-%m-%d")"
+  defaults write /Library/Preferences/$companyPreferenceDomain.majorOSSoftwareUpdatePreferences.plist UserDeferralDate "$(date "+%Y-%m-%d")"
   exit 0
 elif [ "$userUpdateChoice" -eq "0" ]; then
-	if [[ $(pgrep "System Preferences") != "" ]]; then
-		killall "System Preferences"
-	fi
-	/bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
+	/usr/local/bin/jamf policy -event "$majorOSUpdateEvent" -verbose
 fi

@@ -1,11 +1,11 @@
 #!/usr/bin/env zsh
 
-# Title         :Updates_Set OS Software Update Flexibility Window Closure Date.sh
-# Description   :Sets the future date after which user flexibility for OS updates will close
+# Title         :Updates_Set OS Major Software Update Flexibility Window Closure Date.sh
+# Description   :Sets the future date after which user flexibility for Major OS updates will close
 # Author        :John Hutchison
-# Date          :2021-03-25
+# Date          :2021-04-02
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.2.1
+# Version       :1.0
 # Notes         :
 # shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
 
@@ -53,7 +53,8 @@ dateMacBecameAwareOfUpdates="$(/bin/date "+%Y-%m-%d")"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B %e")"
 gracePeriodWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")"
 gracePeriodWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
-softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist"
+softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorOSSoftwareUpdatePreferences.plist"
+majorOSUpgradeID="$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist LastRecommendedMajorOSBundleIdentifier | awk -F '.' '{print $4}')"
 ##########################################################################################
 ### Sanity check to ensure that Jamf variables have been set
 if [[ $4 == "" || $5 == "" ]]; then
@@ -64,6 +65,7 @@ fi
 ### Function to set the flexibility window open and close dates with both parsable and human
 ### readable date formats set for the jamfHelper dialogs
 setSoftwareUpdateReleaseDate ()
+
 {
   defaults write $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
   if [[ "$(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)" = "" ]]; then
@@ -71,7 +73,8 @@ setSoftwareUpdateReleaseDate ()
 		defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
 		defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDate "$gracePeriodWindowClosureDate"
 		defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDateNationalRepresentation "$gracePeriodWindowClosureDateNationalRepresentation"
-  	echo "New Software Update Flexibility Window Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile GracePeriodWindowCloseDate)"
+		defaults write $softwareUpdatePreferenceFile majorOSUpgradeID "$majorOSUpgradeID"
+  	echo "New Software Update Flexibility Window Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)"
   else
   	echo "Software Update Flexibility is already in place, continuing..."
   fi
@@ -80,14 +83,14 @@ setSoftwareUpdateReleaseDate ()
 ### Check for the number of available updates. If none are found, assume the current
 ### timers are stale and remove them
 ##########################################################################################
-if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate LastUpdatesAvailable)" -eq "0" ]]; then
+if [[ "$majorOSUpgradeID" = "" ]]; then
   echo "Client seems to be up to date"
-  if [[ -f /Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist ]]; then
+  if [[ -f /Library/Preferences/$preferenceDomain.majorOSSoftwareUpdatePreferences.plist ]]; then
     echo "Software Update Release Date Window preferences are stale, removing"
-    rm -fv /Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist
+    rm -fv /Library/Preferences/$preferenceDomain.majorOSSoftwareUpdatePreferences.plist
     /usr/local/bin/jamf recon
   fi
-	exit 0
+  exit 0
 fi
 
 ##########################################################################################
