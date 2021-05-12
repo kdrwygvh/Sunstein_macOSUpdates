@@ -42,18 +42,23 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+# The API account to issue MDM commands must have the minimum Jamf Pro privileges
+# Computer - Create Read Update
+# Jamf Pro Server Actions - Send Computer Remote Command to Download and Install macOS Update
+
 hardwareUUID=$(system_profiler SPHardwareDataType | grep "Hardware UUID" | awk '{print $3}')
-jamfAPIAccount=$4
-jamfAPIPassword=$5
+jamfAPIAccount="$4"
+jamfAPIPassword="$5"
 if [[ "$jamfAPIAccount" = "" ]] || [[ "$jamfAPIPassword" = "" ]]; then
-	echo "Jamf variables are not yet, bailing for now..."
-	exit 1
+  echo "Jamf variables are not yet, bailing for now..."
+  exit 1
 fi
 jamfManagementURL=$(defaults read /Library/Preferences/com.jamfsoftware.jamf jss_url)
 jamfAuthorizationBase64="$(printf "$jamfAPIAccount:$jamfAPIPassword" | iconv -t ISO-8859-1 | base64 -i -)"
 jamfComputerID=$(curl -H 'Content-Type: application/xml' -H "Authorization: Basic $jamfAuthorizationBase64" ""$jamfManagementURL"JSSResource/computers/udid/$hardwareUUID/subset/General" | xmllint --xpath "string(//id)" -)
 
-## POST Software Update MDM Command. Will only work on ABM enrolled or Big Sur Devices with a UAMDM profile
-curl -s -f -X "POST" "$jamfManagementURL/JSSResource/computercommands/command/ScheduleOSUpdate/action/install/id/$jamfComputerID" \
-		 -H "Authorization: Basic $jamfAuthorizationBase64" \
-		 -H 'Cache-Control: no-cache'
+## POST Software Update MDM Command. Will only work on ABM enrolled devices.
+curl -s -f -X "POST" "$jamfManagementURL""JSSResource/computercommands/command/ScheduleOSUpdate/action/install/id/$jamfComputerID" \
+     -H "Authorization: Basic $jamfAuthorizationBase64" \
+     -H 'Cache-Control: no-cache'
+
