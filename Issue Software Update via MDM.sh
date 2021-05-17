@@ -47,18 +47,59 @@
 # Jamf Pro Server Actions - Send Computer Remote Command to Download and Install macOS Update
 
 hardwareUUID=$(system_profiler SPHardwareDataType | grep "Hardware UUID" | awk '{print $3}')
+
+currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
+currentUserUID=$(/usr/bin/id -u "$currentUser")
+currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
+if [[ "$currentUser" = "root" ]]; then
+	echo "User is not logged into GUI, console, or remote session"
+	userLoggedInStatus=0
+else
+	userLoggedInStatus=1
+fi
+
 jamfAPIAccount="$4"
 jamfAPIPassword="$5"
+logoPath="$6" # Optional
+jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
+
 if [[ "$jamfAPIAccount" = "" ]] || [[ "$jamfAPIPassword" = "" ]]; then
   echo "Jamf variables are not yet, bailing for now..."
   exit 1
 fi
+
+# Validate logoPATH file. If no logoPATH is provided or if the file cannot be found at
+# specified path, default to either the Software Update or App Store Icon.
+if [[ -z "$logoPath" ]] || [[ ! -f "$logoPath" ]]; then
+  /bin/echo "No logo path provided or no logo exists at specified path, using standard application icon"
+  if [[ -f "/System/Library/PreferencePanes/SoftwareUpdate.prefPane/Contents/Resources/SoftwareUpdate.icns" ]]; then
+    logoPath="/System/Library/PreferencePanes/SoftwareUpdate.prefPane/Contents/Resources/SoftwareUpdate.icns"
+  else
+    logoPath="/Applications/App Store.app/Contents/Resources/AppIcon.icns"
+  fi
+fi
+
 jamfManagementURL=$(defaults read /Library/Preferences/com.jamfsoftware.jamf jss_url)
 jamfAuthorizationBase64="$(printf "$jamfAPIAccount:$jamfAPIPassword" | iconv -t ISO-8859-1 | base64 -i -)"
 jamfComputerID=$(curl -H 'Content-Type: application/xml' -H "Authorization: Basic $jamfAuthorizationBase64" ""$jamfManagementURL"JSSResource/computers/udid/$hardwareUUID/subset/General" | xmllint --xpath "string(//id)" -)
 
-## POST Software Update MDM Command. Will only work on ABM enrolled devices.
+echo "Determining if any updates are available that require a restart"
+numberofUpdatesRequringRestart="$(/usr/sbin/softwareupdate -l | /usr/bin/grep -i -c 'restart')"
+if [[ "$numberofUpdatesRequringRestart" -eq 0 ]]; then
+  echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
+elif [[ "$numberofUpdatesRequringRestart" -ge 1 ]]; then
+  echo "Updates that require a restart were found, notifying user"
+  if [[ "$userLoggedInStatus" -eq "1" ]]; then
+		/bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+		-icon "$logoPath" \
+		-title "Downloading macOS" \
+		-description "An update for your Mac is being applied and will reboot your computer to complete. Your work will be preserved." \
+		-button1 "OK" \
+		-startlaunchd &
+	fi
+fi
+
+## POST Software Update MDM Command. Will only work on ABM enrolled devices or Big Sur Devices that are supervised with a user approved MDM enrollment profile
 curl -s -f -X "POST" "$jamfManagementURL""JSSResource/computercommands/command/ScheduleOSUpdate/action/install/id/$jamfComputerID" \
      -H "Authorization: Basic $jamfAuthorizationBase64" \
      -H 'Cache-Control: no-cache'
-
