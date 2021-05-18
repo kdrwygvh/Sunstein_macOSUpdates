@@ -43,43 +43,53 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 # Jamf Pro Usage
-# Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with "more than" the number of days you're specifying as the grace period duration.
+# Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with "more than"
+# the number of days you're specifying as the grace period duration.
 
-### Enter your organization's preference domain as a Jamf parameter
 companyPreferenceDomain=$4
-##########################################################################################
-### Use Custom Self Service Branding for Dialogs as true/false Jamf Parameter $5 ###
 customBrandingImagePath=$5
-##########################################################################################
-### Jamf Event Name for Software Updates via MDM
 mdmSoftwareUpdateEvent=$6
-##########################################################################################
-
-### Collecting the logged in user's UserName attribute to sudo as he/she for various commands
+notificationTitle="$7"
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
-currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
-##########################################################################################
-### Logic to remove a Software Update release date preference if the client is already up to date
-if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate LastUpdatesAvailable)" -eq "0" ]]; then
-  echo "Client is up to date or has not yet cached needed updates, exiting"
-  if [[ -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
-    echo "Grace Period window in Place, Removing"
-    rm -fv /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist
-  fi
-  /usr/local/bin/jamf recon
-  exit 0
-fi
+currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirectory | awk -F ': ' '{print $2}')"
+jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
+softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
+appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate.plist"
 
-if [[ ! -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
+if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
 	echo "Software Update Preferences not yet in place, bailing for now"
 	/usr/local/bin/jamf recon
 	exit 0
 fi
 
-##########################################################################################
-### Construct the jamfHelper Notification Window
-##########################################################################################
+if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)" -eq "0" ]]; then
+  echo "Client is up to date or has not yet cached needed updates, exiting"
+  if [[ -f "$softwareUpdatePreferenceFile" ]]; then
+    echo "Grace Period window in Place, removing"
+    rm -fv "$softwareUpdatePreferenceFile"
+  fi
+  /usr/local/bin/jamf recon
+  exit 0
+fi
+
+softwareUpdateNotification(){
+
+	"$jamfHelper" \
+	-windowType utility \
+	-windowPosition ur \
+	-title "$notificationTitle" \
+	-description "Updates are available which we'd suggest installing today at your earliest opportunity.
+
+	You'll be presented with available updates to install after clicking 'Update Now'" \
+	-alignDescription left \
+	-icon "$dialogImagePath" \
+	-iconSize 120 \
+	-button1 "Update Now" \
+	-defaultButton 0 \
+	-timeout 300
+}
+
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
 elif [[ "$customBrandingImagePath" = "" ]]; then
@@ -92,28 +102,6 @@ else
   echo "jamfHelper icon branding not set, continuing anyway as the error is purly cosmetic"
 fi
 
-softwareUpdateNotification(){
-
-	userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
-		-windowType utility \
-		-windowPosition ur \
-		-title Updates Available \
-		-description "Updates are available which we'd suggest installing today at your earliest opportunity.
-
-		You'll be presented with available updates to install after clicking 'Update Now'" \
-		-alignDescription left \
-		-icon "$dialogImagePath" \
-		-iconSize 120 \
-		-button1 "Update Now" \
-		-defaultButton 0 \
-		-cancelButton 1 \
-		-timeout 300
-  )
-}
-
-##########################################################################################
-### If a user is not logged in, run softwareupdate
-##########################################################################################
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, safe to perform all updates and restart now if required"
   numberofUpdatesRequringRestart="$(/usr/sbin/softwareupdate -l | /usr/bin/grep -i -c 'restart')"
@@ -130,15 +118,12 @@ if [[ "$currentUser" = "root" ]]; then
     fi
   fi
 fi
-##########################################################################################
-### Check the do not disturb state of the current user session. If enabled, we'll skip the notification ###
-doNotDisturbState="$(defaults read $currentUserHomeDirectoryPath/Library/Preferences/ByHost/com.apple.notificationcenterui.plist doNotDisturb)"
+
+doNotDisturbState="$(defaults read "$currentUserHomeDirectoryPath"/Library/Preferences/ByHost/com.apple.notificationcenterui.plist doNotDisturb)"
 if [[ ${doNotDisturbState} -eq 1 ]]; then
   echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
   exit 0
 fi
-##########################################################################################
-### If a user is logged in, present the update notification to them
 softwareUpdateNotification
 if [[ $(pgrep "System Preferences") != "" ]]; then
   killall "System Preferences"

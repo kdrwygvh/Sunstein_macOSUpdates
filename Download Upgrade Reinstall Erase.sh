@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Title         :macOS_Upgrade_Reinstall_Erase_Workflow.sh
+# Title         :macOS Download Upgrade Reinstall Erase.sh
 # Description   :Performs an upgrade, reinstall, or erase of macOS based on Jamf variables
 # Author        :John Hutchison
-# Date          :2021-04-19
+# Date          :2021-05-18
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
 # Version       :1.3.2
 # Notes         : Updated to support disk spce checking on HFS+ filesystems
@@ -109,7 +109,6 @@ logoPath_POSIX="$(/usr/bin/osascript -e 'tell application "System Events" to ret
 # Collecting current user attributes ###
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
-currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
 ##########################################################################################
 
 # Collect the OS version in various formats
@@ -118,10 +117,9 @@ currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirector
 # macOSVersionEpoch is the major version number and is meant to draw a line between Big Sur and all prior versions of macOS
 # macOSVersionMajor is the current dot releaes of macOS (15 in 10.15)
 
-macOSVersionScriptCompatible="$(sysctl -a | grep "kern.osproductversioncompat:" | awk -F ': ' '{print $2}')"
 macOSVersionMarketingCompatible="$(sw_vers -productVersion)"
-macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<$macOSVersionMarketingCompatible)"
-macOSVersionMajor="$(awk -F '.' '{print $2}' <<<$macOSVersionMarketingCompatible)"
+macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatible")"
+macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
 
 # Function declarations
 
@@ -146,19 +144,19 @@ networkLinkEvaluation ()
     sysdiagnose -v -A sysdiagnose.preInstall."$(date "+%m.%d.%y")" -n -F -S -u -Q -b -g -R
     ## Gather Network State Details
     diagnosticsConfiguration="/var/tmp/sysdiagnose.preInstall.$(date "+%m.%d.%y")/WiFi/diagnostics-configuration.txt"
-    wifiSignalState=$(grep "Poor Wi-Fi Signal" $diagnosticsConfiguration | grep -c "Yes")
-    legacyWifiState=$(grep "Legacy Wi-Fi Rates (802.11b)" $diagnosticsConfiguration| grep -c "Yes")
-    iosHotspotState=$(grep "iOS Personal Hotspot" $diagnosticsConfiguration | grep -c "Yes")
+    wifiSignalState=$(grep "Poor Wi-Fi Signal" "$diagnosticsConfiguration" | grep -c "Yes")
+    legacyWifiState=$(grep "Legacy Wi-Fi Rates (802.11b)" "$diagnosticsConfiguration" | grep -c "Yes")
+    iosHotspotState=$(grep "iOS Personal Hotspot" "$diagnosticsConfiguration" | grep -c "Yes")
     # Gather Network Reachability Details
     diagnosticsConnectivity="/var/tmp/sysdiagnose.preInstall.$(date "+%m.%d.%y")/WiFi/diagnostics-connectivity.txt"
-    appleCurlResult=$(grep "Curl Apple" $diagnosticsConfiguration | grep -c "No")
-    appleReachabilityResult=$(grep "Reach Apple" $diagnosticsConfiguration | grep -c "No")
-    dnsResolutionResult=$(grep "Resolve DNS" $diagnosticsConfiguration | grep -c "No")
-    wanPingResult=$(head -1 $diagnosticsConfiguration | grep "Ping WAN" $diagnosticsConfiguration | grep -c "No")
-    lanPingResult=$(head -1 $diagnosticsConfiguration | grep "Ping LAN" $diagnosticsConfiguration | grep -c "No")
+    appleCurlResult=$(grep "Curl Apple" "$diagnosticsConfiguration" | grep -c "No")
+    appleReachabilityResult=$(grep "Reach Apple" "$diagnosticsConfiguration" | grep -c "No")
+    dnsResolutionResult=$(grep "Resolve DNS" "$diagnosticsConfiguration" | grep -c "No")
+    wanPingResult=$(head -1 "$diagnosticsConfiguration" | grep "Ping WAN" "$diagnosticsConfiguration" | grep -c "No")
+    lanPingResult=$(head -1 "$diagnosticsConfiguration" | grep "Ping LAN" "$diagnosticsConfiguration" | grep -c "No")
     # Gather Network Congestion Details
     diagnosticsEnvironment="/var/tmp/sysdiagnose.preInstall.$(date "+%m.%d.%y")/WiFi/diagnostics-environment.txt"
-    congestedNetworkResult=$(cat $diagnosticsEnvironment | grep "Congested Wi-Fi Channel" | grep -c "Yes")
+    congestedNetworkResult=$(grep "Congested Wi-Fi Channel" "$diagnosticsEnvironment" | grep -c "Yes")
     # Echo all results
     echo "Wi-Fi Signal Result=$wifiSignalState"
     echo "Legacy Wi-Fi Result=$legacyWifiState"
@@ -314,14 +312,14 @@ preUpgradeJamfPolicies ()
 
 downloadOSInstaller ()
   {
-    installerCount="$(mdfind -name $installerName | grep -v '\.bom\|\.plist' | wc -l | sed "s/^[ \t]*//")"
+    installerCount="$(mdfind -name "$installerName" | grep -v '\.bom\|\.plist' | wc -l | sed "s/^[ \t]*//")"
     if [[ "$installerCount" -eq "0" ]]; then
       echo "No installers present, downloading a fresh copy"
       installerPath="/Applications/$installerName.app"
       startOSInstall="$installerPath"/Contents/Resources/startosinstall
       willDownload="true"
     elif [[ "$installerCount" -ge "1" ]]; then
-      installerPaths="$(mdfind -name $installerName -0 | xargs -I {} -0 echo {} | grep -v '\.bom\|\.plist')"
+      installerPaths="$(mdfind -name "$installerName" -0 | xargs -I {} -0 echo {} | grep -v '\.bom\|\.plist')"
       echo "Found installers at "$installerPaths", checking version"
       IFS=$'\n'
       for installer in $installerPaths; do
@@ -356,13 +354,11 @@ downloadOSInstaller ()
         -button1 "OK" \
         -startlaunchd &
       fi
-      softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion"
-      if [[ "$(echo $?)" -eq 0 ]]; then
+      if [[ $(softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion") -eq "0" ]]; then
         echo "Download from Apple CDN was successful"
       else
         echo "Download from Apple CDN was not successfull, falling back to Jamf download"
-        /usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent"
-        if [[ "$(echo $?)" -eq 1 ]]; then
+        if [[ $(/usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent") -eq "1" ]]; then
           echo "Installer could not be downloaded from Jamf, bailing now"
           exit 1
         fi

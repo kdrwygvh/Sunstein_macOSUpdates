@@ -43,57 +43,21 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 # Jamf Pro Usage
-# Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with "less than" the number of days you're specifying as the grace period duration.
+# Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with
+# "less than" the number of days you're specifying as the grace period duration
 
-### Enter your organization's preference domain as a Jamf parameter 4 ###
 companyPreferenceDomain=$4
-##########################################################################################
-### Enter the length of the flexibility window in days. This should match the flexibility
-### window in days set in Updates_Set OS Software Update Flexibilty Window Closure Date
-macOSSoftwareUpdateGracePeriodinDays=$5
-##########################################################################################
-### Use Custom Self Service Branding for dialogs as true/false Jamf Parameter $6 ###
-customBrandingImagePath=$6
-##########################################################################################
-### Collecting current user attributes ###
+customBrandingImagePath=$5
+softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
+appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate.plist"
+jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
+dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation)"
+gracePeriodWindowCloseDateNationalRepresentation="$(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDateNationalRepresentation)"
+macOSSoftwareUpdateGracePeriodinDays="$(defaults read $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays)"
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
-##########################################################################################
-### Logic to remove a flexibility window if the client is already up to date
-if [[ "$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist LastUpdatesAvailable)" -eq 0 ]]; then
-  echo "Client is up to date, exiting"
-  if [[ -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
-    echo "Flexibility window preference in Place, removing"
-    rm -fv /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist
-  fi
-  /usr/local/bin/jamf recon
-  exit 0
-fi
 
-if [[ ! -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
-	echo "Software Update Preferences not yet in place, bailing for now"
-	/usr/local/bin/jamf recon
-	exit 0
-fi
-##########################################################################################
-### two conditions for which we'll not display the software update notification
-### if the Mac is at the login window or if the user has enabled 'do not disturb'
-##########################################################################################
-if [[ "$currentUser" = "root" ]]; then
-  echo "User is not in session, not bothering with presenting the software update notification this time around"
-  exit 0
-elif [[ "$currentUser" != "root" ]]; then
-  doNotDisturbState="$(defaults read $currentUserHomeDirectoryPath/Library/Preferences/ByHost/com.apple.notificationcenterui.plist doNotDisturb)"
-  if [[ ${doNotDisturbState} -eq 1 ]]; then
-    echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
-    exit 0
-  else
-    echo "Do not disturb is disabled, safe to proceed with software update notification"
-  fi
-fi
-##########################################################################################
-### Construct the jamfHelper Notification Window
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
 elif [[ "$customBrandingImagePath" = "" ]]; then
@@ -105,11 +69,10 @@ elif [[ "$customBrandingImagePath" = "" ]]; then
 else
   echo "jamfHelper icon branding not set, continuing anyway as the error is purly cosmetic"
 fi
+
 softwareUpdateNotification (){
 
-  dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist dateMacBecameAwareOfUpdatesNationalRepresentation)"
-  gracePeriodWindowCloseDateNationalRepresentation="$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist gracePeriodWindowCloseDateNationalRepresentation)"
-  userUpdateChoice=$("/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper" \
+  userUpdateChoice=$("$jamfHelper" \
     -windowType utility \
     -windowPosition ur \
     -title "Updates Available" \
@@ -130,14 +93,43 @@ Auto Installation will start on or about
   )
 }
 
+### Remove a grace period window if the client is already up to date
+if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)" -eq 0 ]]; then
+  echo "Client is up to date, exiting"
+  if [[ -f $softwareUpdatePreferenceFile ]]; then
+    echo "Flexibility window preference in Place, removing"
+    rm -fv $softwareUpdatePreferenceFile
+  fi
+  /usr/local/bin/jamf recon
+  exit 0
+fi
+
+if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
+	echo "Software Update Preferences not yet in place, bailing for now"
+	/usr/local/bin/jamf recon
+	exit 0
+fi
+
+### Two conditions for which we'll not display the software update notification
+### if the Mac is at the login window or if the user has enabled 'do not disturb'
+if [[ "$currentUser" = "root" ]]; then
+  echo "User is not in session, not bothering with presenting the software update notification this time around"
+  exit 0
+elif [[ "$currentUser" != "root" ]]; then
+  doNotDisturbState="$(defaults read $currentUserHomeDirectoryPath/Library/Preferences/ByHost/com.apple.notificationcenterui.plist doNotDisturb)"
+  if [[ "$doNotDisturbState" -eq "1" ]]; then
+    echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
+    exit 0
+  else
+    echo "Do not disturb is disabled, safe to proceed with software update notification"
+  fi
+fi
+
 softwareUpdateNotification
 
-##########################################################################################
-### User update choice logic. The appropriate software update preference pane will open
-### based on the macOS version
 if [ "$userUpdateChoice" -eq "2" ]; then
   echo "User chose to defer to a later date, exiting"
-  defaults write /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist UserDeferralDate "$(date "+%Y-%m-%d")"
+  defaults write "$softwareUpdatePreferenceFile" UserDeferralDate "$(date "+%Y-%m-%d")"
   exit 0
 elif [ "$userUpdateChoice" -eq "0" ]; then
 	if [[ $(pgrep "System Preferences") != "" ]]; then

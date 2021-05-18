@@ -42,32 +42,15 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-
-### Enter your organization's preference domain as script parameter $4 ###
 preferenceDomain=$4
-##########################################################################################
-### Enter the number of days flexibility a user has to perform their own updates as script parameter $5 ###
 macOSSoftwareUpdateGracePeriodinDays=$5
-##########################################################################################
 dateMacBecameAwareOfUpdates="$(/bin/date "+%Y-%m-%d")"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B %e")"
 gracePeriodWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")"
 gracePeriodWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorOSSoftwareUpdatePreferences.plist"
-majorOSUpgradeID="$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist LastRecommendedMajorOSBundleIdentifier | awk -F '.' '{print $4}')"
-##########################################################################################
-### Sanity check to ensure that Jamf variables have been set
-if [[ "$preferenceDomain"= "" ]]; then
-	echo "Preference Domain not set as a jamf variable, bailing"
-	exit 2
-sh
-if [[ "$macOSSoftwareUpdateGracePeriodinDays"= "" ]]; then
-	echo "Grace Period not set as a jamf variable, bailing"
-	exit 2
-fi
-
-### Function to set the flexibility window open and close dates with both parsable and human
-### readable date formats set for the jamfHelper dialogs
+appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate.plist"
+majorOSUpgradeID="$(defaults read $appleSoftwareUpdatePreferenceFile LastRecommendedMajorOSBundleIdentifier | awk -F '.' '{print $4}')"
 
 setSoftwareUpdateReleaseDate ()
 
@@ -85,14 +68,29 @@ setSoftwareUpdateReleaseDate ()
   fi
 }
 
+
+### Sanity check to ensure that Jamf variables have been set
+if [[ "$preferenceDomain" == "" ]]; then
+	echo "Preference Domain not set as a jamf variable, bailing"
+	exit 2
+fi
+if [[ "$macOSSoftwareUpdateGracePeriodinDays" = "" ]]; then
+	echo "Grace Period not set as a jamf variable, bailing"
+	exit 2
+fi
+if [[ "$macOSSoftwareUpdateGracePeriodinDays" != [[:digit:]] ]]; then
+	echo "Grace Period variable not set to a regular integer, bailing"
+	exit 2
+fi
+
 ### Check for the number of available updates. If none are found, assume the current
 ### timers are stale and remove them
 
 if [[ "$majorOSUpgradeID" = "" ]]; then
   echo "Client seems to be up to date"
-  if [[ -f /Library/Preferences/$preferenceDomain.majorOSSoftwareUpdatePreferences.plist ]]; then
+  if [[ -f "$softwareUpdatePreferenceFile" ]]; then
     echo "Software Update Release Date Window preferences are stale, removing"
-    rm -fv /Library/Preferences/$preferenceDomain.majorOSSoftwareUpdatePreferences.plist
+    rm -fv "$softwareUpdatePreferenceFile"
     /usr/local/bin/jamf recon
   fi
   exit 0

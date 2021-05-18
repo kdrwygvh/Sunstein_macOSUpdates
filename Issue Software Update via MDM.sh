@@ -42,15 +42,21 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# The API account to issue MDM commands must have the minimum Jamf Pro privileges
+# The API account to issue MDM commands must have the minimum Jamf Pro privileges;
 # Computer - Create Read Update
 # Jamf Pro Server Actions - Send Computer Remote Command to Download and Install macOS Update
 
+jamfAPIAccount="$4" #Required
+jamfAPIPassword="$5" #Required
+logoPath="$6" # Optional
+notificationTitle="$7" #Recommended
+notificationDescription="$8" #Required
 hardwareUUID=$(system_profiler SPHardwareDataType | grep "Hardware UUID" | awk '{print $3}')
-
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
-currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
+jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
+jamfManagementURL=$(defaults read /Library/Preferences/com.jamfsoftware.jamf jss_url)
+
 if [[ "$currentUser" = "root" ]]; then
 	echo "User is not logged into GUI, console, or remote session"
 	userLoggedInStatus=0
@@ -58,14 +64,11 @@ else
 	userLoggedInStatus=1
 fi
 
-jamfAPIAccount="$4"
-jamfAPIPassword="$5"
-logoPath="$6" # Optional
-jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
-
 if [[ "$jamfAPIAccount" = "" ]] || [[ "$jamfAPIPassword" = "" ]]; then
   echo "Jamf variables are not yet, bailing for now..."
   exit 1
+else
+	jamfAuthorizationBase64="$(printf "%s\n" "$jamfAPIAccount:$jamfAPIPassword" | iconv -t ISO-8859-1 | base64 -i -)"
 fi
 
 # Validate logoPATH file. If no logoPATH is provided or if the file cannot be found at
@@ -79,8 +82,6 @@ if [[ -z "$logoPath" ]] || [[ ! -f "$logoPath" ]]; then
   fi
 fi
 
-jamfManagementURL=$(defaults read /Library/Preferences/com.jamfsoftware.jamf jss_url)
-jamfAuthorizationBase64="$(printf "$jamfAPIAccount:$jamfAPIPassword" | iconv -t ISO-8859-1 | base64 -i -)"
 jamfComputerID=$(curl -H 'Content-Type: application/xml' -H "Authorization: Basic $jamfAuthorizationBase64" ""$jamfManagementURL"JSSResource/computers/udid/$hardwareUUID/subset/General" | xmllint --xpath "string(//id)" -)
 
 echo "Determining if any updates are available that require a restart"
@@ -92,8 +93,8 @@ elif [[ "$numberofUpdatesRequringRestart" -ge 1 ]]; then
   if [[ "$userLoggedInStatus" -eq "1" ]]; then
 		/bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
 		-icon "$logoPath" \
-		-title "Downloading macOS" \
-		-description "An update for your Mac is being applied and will reboot your computer to complete. Your work will be preserved." \
+		-title "$notificationTitle" \
+		-description "$notificationDescription" \
 		-button1 "OK" \
 		-startlaunchd &
 	fi
