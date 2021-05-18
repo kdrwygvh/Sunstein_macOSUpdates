@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 
 # Title         :Updates_Set OS Software Update Flexibility Window Closure Date.sh
 # Description   :Sets the future date after which user flexibility for OS updates will close

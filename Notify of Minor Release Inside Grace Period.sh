@@ -1,9 +1,9 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 
 # Title         :Updates_Notify User of Pending Updates with Option to Defer.sh
 # Description   :Update notifications via the jamfHeloper
 # Author        :John Hutchison
-# Date          :2021-03-25
+# Date          :2021-05-18
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
 # Version       :1.2.1
 # Notes         :Updated for compatibility with Big Sur. Support for High Sierra removed

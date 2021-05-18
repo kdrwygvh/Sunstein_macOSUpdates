@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 
 # Title         :Updates_Issue Software Update Command via MDM.sh
 # Description   :

@@ -1,9 +1,9 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 
 # Title         :Updates_Install all Outstanding Updates_softwareupdate.sh
 # Description   :
 # Author        :John Hutchison
-# Date          :2021-03-25
+# Date          :2021-05-18
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
 # Version       :1.2.1
 # Notes         :Updated for Big Sur compatibility. Support for High Sierra Removed
@@ -11,7 +11,7 @@
 
 # The Clear BSD License
 #
-# Copyright (c) [2020] [John Hutchison of Russell & Manifold ltd.]
+# Copyright (c) [2021] [John Hutchison of Russell & Manifold ltd.]
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
