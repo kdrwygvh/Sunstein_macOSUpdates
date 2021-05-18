@@ -29,7 +29,7 @@
 #      contributors may be used to endorse or promote products derived from this
 #      software without specific prior written permission.
 #
-# NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY\'S PATENT RIGHTS ARE GRANTED BY
+# NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
 # THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
 # CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -78,10 +78,7 @@ if [[ "$macOSSoftwareUpdateGracePeriodinDays" = "" ]]; then
 	echo "Grace Period not set as a jamf variable, bailing"
 	exit 2
 fi
-if [[ "$macOSSoftwareUpdateGracePeriodinDays" != [[:digit:]] ]]; then
-	echo "Grace Period variable not set to a regular integer, bailing"
-	exit 2
-fi
+
 
 ### Check for the number of available updates. If none are found, assume the current
 ### timers are stale and remove them
