@@ -73,6 +73,18 @@ if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)"
   exit 0
 fi
 
+if [[ "$customBrandingImagePath" != "" ]]; then
+  dialogImagePath="$customBrandingImagePath"
+elif [[ "$customBrandingImagePath" = "" ]]; then
+  if [[ -f "/System/Library/PreferencePanes/SoftwareUpdate.prefPane/Contents/Resources/SoftwareUpdate.icns" ]]; then
+    dialogImagePath="/System/Library/PreferencePanes/SoftwareUpdate.prefPane/Contents/Resources/SoftwareUpdate.icns"
+  else
+    dialogImagePath="/Applications/App Store.app/Contents/Resources/AppIcon.icns"
+  fi
+else
+  echo "jamfHelper icon branding not set, continuing anyway as the error is purly cosmetic"
+fi
+
 softwareUpdateNotification(){
 
 	"$jamfHelper" \
@@ -89,18 +101,6 @@ softwareUpdateNotification(){
 	-defaultButton 0 \
 	-timeout 300
 }
-
-if [[ "$customBrandingImagePath" != "" ]]; then
-  dialogImagePath="$customBrandingImagePath"
-elif [[ "$customBrandingImagePath" = "" ]]; then
-  if [[ -f "/System/Library/PreferencePanes/SoftwareUpdate.prefPane/Contents/Resources/SoftwareUpdate.icns" ]]; then
-    dialogImagePath="/System/Library/PreferencePanes/SoftwareUpdate.prefPane/Contents/Resources/SoftwareUpdate.icns"
-  else
-    dialogImagePath="/Applications/App Store.app/Contents/Resources/AppIcon.icns"
-  fi
-else
-  echo "jamfHelper icon branding not set, continuing anyway as the error is purly cosmetic"
-fi
 
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, safe to perform all updates and restart now if required"
