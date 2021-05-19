@@ -357,13 +357,19 @@ downloadOSInstaller ()
       if [[ $(softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion") -eq "0" ]]; then
         echo "Download from Apple CDN was successful"
       else
-        echo "Download from Apple CDN was not successfull, falling back to Jamf download"
-        if [[ $(/usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent") -eq "1" ]]; then
-          echo "Installer could not be downloaded from Jamf, bailing now"
+        echo "Download from Apple CDN was not successfull, falling back to Jamf download if available"
+        if [[ "$macOSInstallAppJamfEvent" != "" ]]; then
+          if [[ $(/usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent") -eq "1" ]]; then
+            echo "Installer could not be downloaded from Jamf, bailing now"
+            exit 1
+          fi
+        else
+          echo "Download from Apple CDN was not successfull, bailing"
           exit 1
         fi
       fi
-    elif [[ "$macOSVersionMajor" -lt "15" && "$willDownload" = "true" ]]; then
+    fi
+    if [[ "$macOSVersionMajor" -lt "15" && "$willDownload" = "true" ]]; then
       echo "Installer will be requested from Jamf CDN, checking if network link evaluations are allowed"
       networkLinkEvaluation
       echo "macOS version must be downloaded via Jamf Policy, attempting download now..."
@@ -394,7 +400,7 @@ passwordPromptAppleSilicon ()
       TRY=1
       while [[ "$(/usr/bin/dscl /Search -authonly "$currentUser" "$userPassword" &> /dev/null; echo $?)" -ne 0 ]]; do
         ((TRY++))
-        echo "Prompting $currentUser for their Mac password again (attempt $TRY)..."
+        echo "Prompting $currentUser for their Mac password again attempt $TRY..."
         userPassword="$(/bin/launchctl asuser "$currentUserUID" /usr/bin/osascript -e 'display dialog "Please re-type your password" default answer "" with title "'"${promptTitle//\"/\\\"}"'" giving up after 86400 with text buttons {"OK"} default button 1 with hidden answer with icon file "'"${logoPath_POSIX//\"/\\\"}"'"' -e 'return text returned of result')"
         if [[ "$(/usr/bin/dscl /Search -authonly "$currentUser" "$userPassword" &> /dev/null; echo $?)" -ne 0 ]]; then
           if (( $TRY >= 2 )); then
@@ -498,7 +504,7 @@ if [[ "$currentUser" = "root" ]]; then
   exit 0
 else
   if [[ "$runHeadless" = "true" ]]; then
-    echo "skipping reboot notification as we're running headless"
+    echo "skipping reboot notification as we are running headless"
     if [[ "$(arch)" = "arm64" ]]; then
       passwordPromptAppleSilicon
       startOSInstaller
