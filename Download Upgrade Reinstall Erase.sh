@@ -370,7 +370,12 @@ downloadOSInstaller ()
       fi
     fi
     if [[ "$macOSVersionMajor" -lt "15" && "$willDownload" = "true" ]]; then
-      echo "Installer will be requested from Jamf CDN, checking if network link evaluations are allowed"
+      echo "Installer will be requested from Jamf CDN checking if Jamf event variable is populated"
+      if [[ "$macOSInstallAppJamfEvent" = "" ]]; then
+        echo "Jamf Event is not defined in policy, bailing"
+        exit 2
+      fi
+      echo "Checking if network link evaluations are allowed"
       networkLinkEvaluation
       echo "macOS version must be downloaded via Jamf Policy, attempting download now..."
       if [[ "$currentUser" = "root" ]]; then
@@ -382,7 +387,12 @@ downloadOSInstaller ()
         -description "Downloading a new copy of macOS. This can take some time. You can close this window and we'll let you know when it's ready" \
         -button1 "OK" \
         -startlaunchd &>/dev/null &
-        /usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent"
+        if [[ $(/usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent") -eq "0" ]]; then
+            echo "Installer successfully downloadef from Jamf repository"
+        else
+            echo "Installer could not be downloaded from Jamf, bailing now"
+            exit 1
+        fi
       fi
     fi
   }
