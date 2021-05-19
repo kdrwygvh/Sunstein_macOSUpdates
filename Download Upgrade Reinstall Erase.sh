@@ -354,12 +354,12 @@ downloadOSInstaller ()
         -button1 "OK" \
         -startlaunchd &
       fi
-      if [[ $(softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion") -eq "0" ]]; then
+      if softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion"; then
         echo "Download from Apple CDN was successful"
       else
         echo "Download from Apple CDN was not successfull, falling back to Jamf download if available"
         if [[ "$macOSInstallAppJamfEvent" != "" ]]; then
-          if [[ $(/usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent") -eq "1" ]]; then
+          if ! /usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent"; then
             echo "Installer could not be downloaded from Jamf, bailing now"
             exit 1
           fi
@@ -369,7 +369,7 @@ downloadOSInstaller ()
         fi
       fi
     fi
-    if [[ "$macOSVersionMajor" -lt "15" && "$willDownload" = "true" ]]; then
+    if [[ "$macOSVersionMajor" -lt "15" ]] || [[ "$macOSVersionEpoch" -lt "11" ]] && [[ "$willDownload" = "true" ]]; then
       echo "Installer will be requested from Jamf CDN checking if Jamf event variable is populated"
       if [[ "$macOSInstallAppJamfEvent" = "" ]]; then
         echo "Jamf Event is not defined in policy, bailing"
@@ -387,7 +387,7 @@ downloadOSInstaller ()
         -description "Downloading a new copy of macOS. This can take some time. You can close this window and we'll let you know when it's ready" \
         -button1 "OK" \
         -startlaunchd &>/dev/null &
-        if [[ $(/usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent") -eq "0" ]]; then
+        if /usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent"; then
             echo "Installer successfully downloadef from Jamf repository"
         else
             echo "Installer could not be downloaded from Jamf, bailing now"
