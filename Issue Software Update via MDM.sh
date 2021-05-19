@@ -51,11 +51,11 @@ jamfAPIPassword="$5" #Required
 logoPath="$6" # Optional
 notificationTitle="$7" #Recommended
 notificationDescription="$8" #Required
-hardwareUUID=$(system_profiler SPHardwareDataType | grep "Hardware UUID" | awk '{print $3}')
-currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
-currentUserUID=$(/usr/bin/id -u "$currentUser")
+hardwareUUID="$(system_profiler SPHardwareDataType | grep "Hardware UUID" | awk '{print $3}')"
+currentUser="$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')"
+currentUserUID="$(/usr/bin/id -u "$currentUser")"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
-jamfManagementURL=$(defaults read /Library/Preferences/com.jamfsoftware.jamf jss_url)
+jamfManagementURL="$(defaults read /Library/Preferences/com.jamfsoftware.jamf jss_url)"
 
 if [[ "$currentUser" = "root" ]]; then
 	echo "User is not logged into GUI, console, or remote session"
@@ -64,12 +64,18 @@ else
 	userLoggedInStatus=1
 fi
 
-if [[ "$jamfAPIAccount" = "" ]] || [[ "$jamfAPIPassword" = "" ]]; then
-  echo "Jamf variables are not yet, bailing for now..."
-  exit 1
-else
-	jamfAuthorizationBase64="$(printf "%s\n" "$jamfAPIAccount:$jamfAPIPassword" | iconv -t ISO-8859-1 | base64 -i -)"
+if [[ "$jamfAPIAccount" = "" ]]; then
+  echo "Jamf API Account not set, bailing"
+  exit 2
 fi
+
+if [[ "$jamfAPIPassword" = "" ]]; then
+  echo "Jamf API Password not set, bailing"
+  exit 2
+fi
+
+jamfAuthorizationBase64="$(printf "%s\n" "$jamfAPIAccount:$jamfAPIPassword" | iconv -t ISO-8859-1 | base64 -i -)"
+
 
 # Validate logoPATH file. If no logoPATH is provided or if the file cannot be found at
 # specified path, default to either the Software Update or App Store Icon.
@@ -86,9 +92,9 @@ jamfComputerID=$(curl -H 'Content-Type: application/xml' -H "Authorization: Basi
 
 echo "Determining if any updates are available that require a restart"
 numberofUpdatesRequringRestart="$(/usr/sbin/softwareupdate -l | /usr/bin/grep -i -c 'restart')"
-if [[ "$numberofUpdatesRequringRestart" -eq 0 ]]; then
-  echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
-elif [[ "$numberofUpdatesRequringRestart" -ge 1 ]]; then
+if [[ "$numberofUpdatesRequringRestart" -eq "0" ]]; then
+  echo "No updates found which require a restart, suppressing notifications"
+elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
   echo "Updates that require a restart were found, notifying user"
   if [[ "$userLoggedInStatus" -eq "1" ]]; then
 		/bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
