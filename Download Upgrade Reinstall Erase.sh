@@ -305,7 +305,7 @@ preUpgradeJamfPolicies ()
     else
       for jamfPolicy in "${jamfPolicyEvents[@]}"; do
         echo "Running Jamf policy with event name $jamfPolicy prior to macOS Install"
-        /usr/local/bin/jamf policy -event "$jamfPolicy"
+        /usr/local/bin/jamf policy -event "$jamfPolicy" -verbose
       done
     fi
   }
