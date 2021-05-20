@@ -68,6 +68,7 @@
 # $9 -eq Suppress all Notifications (true/false)
 # $10 -eq Custom Logo Path for Notifications
 # $11 -eq Perform Network Link Evaluation (true/false)
+
 # Certain security products, network proxies, or filters may prevent some or all of the
 # network link tests from passing while allowing software updates in general. Test.
 
@@ -364,12 +365,12 @@ downloadOSInstaller ()
             exit 1
           fi
         else
-          echo "Download from Apple CDN was not successfull, bailing"
+          echo "Download from Apple CDN and Jamf repositories were not successfull, bailing"
           exit 1
         fi
       fi
     fi
-    if [[ "$macOSVersionMajor" -lt "15" ]] || [[ "$macOSVersionEpoch" -lt "11" ]] && [[ "$willDownload" = "true" ]]; then
+    if [[ "$macOSVersionMajor" -lt "15" ]] && [[ "$macOSVersionEpoch" -lt "11" ]] && [[ "$willDownload" = "true" ]]; then
       echo "Installer will be requested from Jamf CDN checking if Jamf event variable is populated"
       if [[ "$macOSInstallAppJamfEvent" = "" ]]; then
         echo "Jamf Event is not defined in policy, bailing"
