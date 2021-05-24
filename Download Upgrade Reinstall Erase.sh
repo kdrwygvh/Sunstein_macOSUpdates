@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Title         :macOS Download Upgrade Reinstall Erase.sh
 # Description   :Performs an upgrade, reinstall, or erase of macOS based on Jamf variables
@@ -371,7 +371,7 @@ downloadOSInstaller ()
       fi
     fi
     if [[ "$macOSVersionMajor" -lt "15" ]] && [[ "$macOSVersionEpoch" -lt "11" ]] && [[ "$willDownload" = "true" ]]; then
-      echo "Installer will be requested from Jamf CDN checking if Jamf event variable is populated"
+      echo "Installer will be requested from Jamf CDN, checking if Jamf event variable is populated"
       if [[ "$macOSInstallAppJamfEvent" = "" ]]; then
         echo "Jamf Event is not defined in policy, bailing"
         exit 2
