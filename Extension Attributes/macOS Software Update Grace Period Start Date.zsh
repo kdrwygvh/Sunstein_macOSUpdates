@@ -1,13 +1,12 @@
-#!/usr/bin/env zsh
+#!/bin/zsh
 
-# Title         :OS Software Flexibility End Date.sh
-# Description   :Collects the end date for the user's flexibility window to defer OS updates
+# Title         :OS Software Flexibility Start Date.sh
+# Description   :Collects the date macOS became aware of a pending update
 # Author        :John Hutchison
 # Date          :2020.04.21
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
 # Version       :1.0
-# Notes         :
-# shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
+# Notes         :Used to calculate the beginning of flexibility window for user facing deferral
 
 # The Clear BSD License
 #
@@ -44,10 +43,16 @@
 
 ### Enter your organization's preference domain below
 
-companyPreferenceDomain=com.company
+companyPreferenceDomain=""
+
+if [[ "$companyPreferenceDomain" = "" ]]; then
+	echo "No preference domain set, reverting to com.github"
+	companyPreferenceDomain="com.github"
+fi
+
 
 if [[ ! -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
 	echo "<result>None</result>"
 else
-	echo "<result>$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist gracePeriodWindowCloseDate)</result>"
+	echo "<result>$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist dateMacBecameAwareOfUpdates)</result>"
 fi

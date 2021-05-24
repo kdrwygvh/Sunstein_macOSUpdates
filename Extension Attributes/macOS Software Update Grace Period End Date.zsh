@@ -1,13 +1,12 @@
-#!/usr/bin/env zsh
+#!/bin/zsh
 
-# Title         :OS Software Flexibility Start Date.sh
-# Description   :Collects the date macOS became aware of a pending update
+# Title         :OS Software Flexibility End Date.sh
+# Description   :Collects the end date for the user's flexibility window to defer OS updates
 # Author        :John Hutchison
 # Date          :2020.04.21
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
 # Version       :1.0
-# Notes         :Used to calculate the beginning of flexibility window for user facing deferral
-# shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
+# Notes         :
 
 # The Clear BSD License
 #
@@ -29,7 +28,7 @@
 #      contributors may be used to endorse or promote products derived from this
 #      software without specific prior written permission.
 #
-# NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY\'S PATENT RIGHTS ARE GRANTED BY
+# NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
 # THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
 # CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -44,10 +43,15 @@
 
 ### Enter your organization's preference domain below
 
-companyPreferenceDomain=com.company
+companyPreferenceDomain=""
+
+if [[ "$companyPreferenceDomain" = "" ]]; then
+	echo "No preference domain set, reverting to com.github"
+	companyPreferenceDomain="com.github"
+fi
 
 if [[ ! -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
 	echo "<result>None</result>"
 else
-	echo "<result>$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist dateMacBecameAwareOfUpdates)</result>"
+	echo "<result>$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist gracePeriodWindowCloseDate)</result>"
 fi

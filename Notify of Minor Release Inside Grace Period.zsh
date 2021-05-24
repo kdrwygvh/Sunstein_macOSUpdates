@@ -1,16 +1,16 @@
-#!/usr/bin/env bash
+#!/bin/zsh
 
-# Title         :Updates_Notify User of Pending Major OS Updates with Option to Defer.sh
+# Title         :Updates_Notify User of Pending Updates with Option to Defer.sh
 # Description   :Update notifications via the jamfHeloper
 # Author        :John Hutchison
 # Date          :2021-05-18
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.0
+# Version       :1.2.1
 # Notes         :Updated for compatibility with Big Sur. Support for High Sierra removed
 
 # The Clear BSD License
 #
-# Copyright (c) [2021] [John Hutchison of Russell & Manifold ltd.]
+# Copyright (c) [2020] [John Hutchison of Russell & Manifold ltd.]
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,15 +47,15 @@
 
 companyPreferenceDomain=$4
 customBrandingImagePath=$5
-majorOSUpdateEvent=$6
-softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.majorSoftwareUpdatePreferences.plist"
+softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
 appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate.plist"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
-dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdatesNationalRepresentation)"
-gracePeriodWindowCloseDateNationalRepresentation="$(defaults read "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDateNationalRepresentation)"
-macOSSoftwareUpdateGracePeriodinDays="$(defaults read "$softwareUpdatePreferenceFile" macOSSoftwareUpdateGracePeriodinDays)"
+dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation)"
+gracePeriodWindowCloseDateNationalRepresentation="$(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDateNationalRepresentation)"
+macOSSoftwareUpdateGracePeriodinDays="$(defaults read $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays)"
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
-currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirectory | awk -F ': ' '{print $2}')"
+currentUserUID=$(/usr/bin/id -u "$currentUser")
+currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
 
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
@@ -92,22 +92,31 @@ Auto Installation will start on or about
   )
 }
 
-if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastRecommendedMajorOSBundleIdentifier)" = "" ]]; then
+### Remove a grace period window if the client is already up to date
+if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)" -eq 0 ]]; then
   echo "Client is up to date, exiting"
-  if [[ -f "$softwareUpdatePreferenceFile" ]]; then
-    echo "Grace period window preference in Place, removing"
-    rm -fv "$softwareUpdatePreferenceFile"
+  if [[ -f $softwareUpdatePreferenceFile ]]; then
+    echo "Flexibility window preference in Place, removing"
+    rm -fv $softwareUpdatePreferenceFile
   fi
   /usr/local/bin/jamf recon
   exit 0
 fi
 
+if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
+	echo "Software Update Preferences not yet in place, bailing for now"
+	/usr/local/bin/jamf recon
+	exit 0
+fi
+
+### Two conditions for which we'll not display the software update notification
+### if the Mac is at the login window or if the user has enabled 'do not disturb'
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, not bothering with presenting the software update notification this time around"
   exit 0
 elif [[ "$currentUser" != "root" ]]; then
-  doNotDisturbState="$(defaults read "$currentUserHomeDirectoryPath"/Library/Preferences/ByHost/com.apple.notificationcenterui.plist doNotDisturb)"
-  if [[ ${doNotDisturbState} -eq 1 ]]; then
+  doNotDisturbState="$(defaults read $currentUserHomeDirectoryPath/Library/Preferences/ByHost/com.apple.notificationcenterui.plist doNotDisturb)"
+  if [[ "$doNotDisturbState" -eq "1" ]]; then
     echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
     exit 0
   else
@@ -122,5 +131,8 @@ if [ "$userUpdateChoice" -eq "2" ]; then
   defaults write "$softwareUpdatePreferenceFile" UserDeferralDate "$(date "+%Y-%m-%d")"
   exit 0
 elif [ "$userUpdateChoice" -eq "0" ]; then
-	/usr/local/bin/jamf policy -event "$majorOSUpdateEvent" -verbose
+	if [[ $(pgrep "System Preferences") != "" ]]; then
+		killall "System Preferences"
+	fi
+	/bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
 fi

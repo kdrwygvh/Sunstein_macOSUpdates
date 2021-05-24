@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/zsh
 
 # Title         :Updates_Install all Outstanding Updates_softwareupdate.sh
 # Description   :
