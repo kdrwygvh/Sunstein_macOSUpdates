@@ -130,6 +130,21 @@ macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatibl
 # passwordpromptAppleSilicon prompts the user for their credential to authenticate software installs on Aople Silicon
 # startOSInstaller starts the startosinstall process with all arguments collected during the rest of this script execution
 
+preUpgradeJamfPolicies ()
+{
+    jamfPolicyEvents=(
+      ""
+    )
+    if [[ "${jamfPolicyEvents[*]}" = "" ]]; then
+      echo "No Jamf policies specified, continuing"
+    else
+      for jamfPolicy in "${jamfPolicyEvents[@]}"; do
+        echo "Running Jamf policy with event name $jamfPolicy prior to macOS Install"
+        /usr/local/bin/jamf policy -event "$jamfPolicy" -verbose
+      done
+    fi
+  }
+
 networkLinkEvaluation ()
 {
   if [[ "$networkLinkEvaluation" = "false" ]]; then
@@ -296,23 +311,8 @@ checkAvailableDiskSpace ()
   fi
 }
 
-preUpgradeJamfPolicies ()
-  {
-    jamfPolicyEvents=(
-      ""
-    )
-    if [[ "${jamfPolicyEvents[*]}" = "" ]]; then
-      echo "No Jamf policies specified, continuing"
-    else
-      for jamfPolicy in "${jamfPolicyEvents[@]}"; do
-        echo "Running Jamf policy with event name $jamfPolicy prior to macOS Install"
-        /usr/local/bin/jamf policy -event "$jamfPolicy" -verbose
-      done
-    fi
-  }
-
 downloadOSInstaller ()
-  {
+{
     installerCount="$(mdfind -name "$installerName" | grep -v '\.bom\|\.plist' | wc -l | sed "s/^[ \t]*//")"
     if [[ "$installerCount" -eq "0" ]]; then
       echo "No installers present, downloading a fresh copy"
@@ -399,7 +399,7 @@ downloadOSInstaller ()
   }
 
 passwordPromptAppleSilicon ()
-  {
+{
     if [[ "$currentUser" = "root" ]]; then
       echo "macOS on Apple Silicon cannot be upgraded without an active login, bailing"
       exit 0
@@ -431,7 +431,7 @@ passwordPromptAppleSilicon ()
   }
 
 startOSInstaller ()
-	{
+{
     if [[ -d /Volumes/InstallESD ]]; then
       echo "Unmounting InstallESD in preparation for new install"
       diskutil unmount /Volumes/InstallESD
