@@ -47,6 +47,7 @@
 
 
 # Notes on Bundle Versions of the macOS Installer App
+# Additional info for Big Sur Installers available at https://mrmacintosh.com/macos-big-sur-full-installer-database-download-directly-from-apple/
 
 # 14.6.06 -eq 10.14.6
 # 15.6.00 -eq 10.15.6
@@ -57,6 +58,7 @@
 # 16.4.08 -eq 11.2.3
 # 16.5.01 -eq 11.3
 # 16.5.02 -eq 11.3.1
+# 16.6.01 -eq 11.4
 
 # Jamf Variable Label names
 
