@@ -109,8 +109,8 @@ if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)"
 fi
 
 if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
-	echo "Software Update Preferences not yet in place, bailing for now"
-	exit 0
+  echo "Software Update Preferences not yet in place, bailing for now"
+  exit 0
 fi
 
 if [[ "$currentUser" = "root" ]]; then
@@ -133,8 +133,8 @@ if [ "$userUpdateChoice" -eq "2" ]; then
   defaults write "$softwareUpdatePreferenceFile" UserDeferralDate "$(date "+%Y-%m-%d")"
   exit 0
 elif [ "$userUpdateChoice" -eq "0" ]; then
-	if [[ $(pgrep "System Preferences") != "" ]]; then
-		killall "System Preferences"
-	fi
-	/bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
+  if [[ $(pgrep "System Preferences") != "" ]]; then
+    killall "System Preferences"
+  fi
+  /bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
 fi

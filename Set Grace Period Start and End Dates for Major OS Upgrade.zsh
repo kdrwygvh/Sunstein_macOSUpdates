@@ -65,23 +65,23 @@ setSoftwareUpdateReleaseDate ()
 {
   defaults write $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
   if [[ "$(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)" = "" ]]; then
-		defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
-		defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
-		defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDate "$gracePeriodWindowClosureDate"
-		defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDateNationalRepresentation "$gracePeriodWindowClosureDateNationalRepresentation"
-  	echo "New Software Update Grace Period Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)"
+    defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
+    defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
+    defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDate "$gracePeriodWindowClosureDate"
+    defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDateNationalRepresentation "$gracePeriodWindowClosureDateNationalRepresentation"
+    echo "New Software Update Grace Period Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)"
   else
-  	echo "Software Update Flexibility is already in place, continuing..."
+    echo "Software Update Flexibility is already in place, continuing..."
   fi
 }
 
 if [[ "$preferenceDomain" == "" ]]; then
-	echo "Preference Domain not set as a jamf variable, bailing"
-	exit 2
+  echo "Preference Domain not set as a jamf variable, bailing"
+  exit 2
 fi
 if [[ "$macOSSoftwareUpdateGracePeriodinDays" = "" ]]; then
-	echo "Grace Period not set as a jamf variable, bailing"
-	exit 2
+  echo "Grace Period not set as a jamf variable, bailing"
+  exit 2
 fi
 
 if [[ "$majorOSUpgradeID" = "" ]]; then
@@ -93,5 +93,5 @@ if [[ "$majorOSUpgradeID" = "" ]]; then
   fi
   exit 0
 else
-	setSoftwareUpdateReleaseDate
+  setSoftwareUpdateReleaseDate
 fi

@@ -117,23 +117,23 @@ if [[ "$macOSVersionEpoch" -ge "11" ]]; then
   echo "current OS is in the new epoch, using epoch number for further evaluation"
   if [[ "$macOSVersionEpoch" -eq "$majorOSUpgradeBaseVersionEpoch" ]]; then
     echo "Client is up to date, exiting"
-      if [[ -f "$softwareUpdatePreferenceFile" ]]; then
+    if [[ -f "$softwareUpdatePreferenceFile" ]]; then
       echo "Grace period window preference in Place, removing"
       rm -fv "$softwareUpdatePreferenceFile"
-      fi
+    fi
     /usr/local/bin/jamf recon
-  exit 0
+    exit 0
   fi
 elif [[ "$macOSVersionEpoch" -eq "10" ]]; then
   echo "current OS is in the prior epoch, using major OS version number for further evaluation"
   if [[ "$macOSVersionMajor" -ge "$majorOSUpgradeBaseVersionMajor" ]]; then
     echo "Client is up to date or newer than the version we're expecting, exiting"
-      if [[ -f "$softwareUpdatePreferenceFile" ]]; then
+    if [[ -f "$softwareUpdatePreferenceFile" ]]; then
       echo "Grace period window preference in Place, removing"
       rm -fv "$softwareUpdatePreferenceFile"
-      fi
+    fi
     /usr/local/bin/jamf recon
-  exit 0
+    exit 0
   fi
 fi
 

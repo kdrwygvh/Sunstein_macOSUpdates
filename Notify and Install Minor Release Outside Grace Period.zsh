@@ -67,8 +67,8 @@ if [[ $6 == "" ]]; then
 fi
 
 if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
-	echo "Software Update Preferences not yet in place, bailing for now"
-	exit 0
+  echo "Software Update Preferences not yet in place, bailing for now"
+  exit 0
 fi
 
 if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)" -eq "0" ]]; then
@@ -95,19 +95,19 @@ fi
 
 softwareUpdateNotification(){
 
-	"$jamfHelper" \
-	-windowType utility \
-	-windowPosition ur \
-	-title "$notificationTitle" \
-	-description "Updates are available which we'd suggest installing today at your earliest opportunity.
+  "$jamfHelper" \
+  -windowType utility \
+  -windowPosition ur \
+  -title "$notificationTitle" \
+  -description "Updates are available which we'd suggest installing today at your earliest opportunity.
 
 You'll be presented with available updates to install after clicking 'Update Now'" \
-	-alignDescription left \
-	-icon "$dialogImagePath" \
-	-iconSize 120 \
-	-button1 "Update Now" \
-	-defaultButton 0 \
-	-timeout 300
+  -alignDescription left \
+  -icon "$dialogImagePath" \
+  -iconSize 120 \
+  -button1 "Update Now" \
+  -defaultButton 0 \
+  -timeout 300
 }
 
 if [[ "$currentUser" = "root" ]]; then
@@ -119,10 +119,10 @@ if [[ "$currentUser" = "root" ]]; then
   elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
     echo "Updates found which require restart. Installing and restarting...but only on Intel based systems"
     if [[ "$(arch)" = "arm64" ]]; then
-    	echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"
-    	/usr/local/bin/jamf policy -event "$mdmSoftwareUpdateEvent" -verbose
+      echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"
+      /usr/local/bin/jamf policy -event "$mdmSoftwareUpdateEvent" -verbose
     else
-    	softwareupdate --install --all --restart --verbose
+      softwareupdate --install --all --restart --verbose
     fi
   fi
 fi
