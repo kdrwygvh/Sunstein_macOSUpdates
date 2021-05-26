@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-# Title         :Updates_Install all Outstanding Updates_softwareupdate.sh
+# Title         :Notify and Install Minor Release Outside Grace Period.zsh
 # Description   :
 # Author        :John Hutchison
 # Date          :2021-05-18

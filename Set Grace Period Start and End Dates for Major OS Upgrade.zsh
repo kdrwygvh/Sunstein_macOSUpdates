@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-# Title         :Updates_Set OS Major Software Update Flexibility Window Closure Date.sh
+# Title         :Set Grace Period Start and End Dates for Major OS Upgrade.zsh
 # Description   :Sets the future date after which user flexibility for Major OS updates will close
 # Author        :John Hutchison
 # Date          :2021-04-02

@@ -1,7 +1,7 @@
 #!/bin/zsh
 
-# Title         :Updates_Notify User of Pending Major OS Updates with Option to Defer.sh
-# Description   :Update notifications via the jamfHeloper
+# Title         :Notify of Major Release Inside Grace Period.zsh
+# Description   :Update notifications via the jamfHelper
 # Author        :John Hutchison
 # Date          :2021-05-18
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
