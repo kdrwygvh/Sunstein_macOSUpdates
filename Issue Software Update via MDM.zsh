@@ -1,13 +1,12 @@
 #!/bin/zsh
 
-# Title         :Updates_Issue Software Update Command via MDM.sh
+# Title         :Issue Software Update via MDM.zsh
 # Description   :
 # Author        :John Hutchison
-# Date          :2020.08.01
+# Date          :2021-05-25
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
 # Version       :1.0
 # Notes         :
-# shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
 
 # The Clear BSD License
 #
@@ -46,11 +45,11 @@
 # Computer - Create Read Update
 # Jamf Pro Server Actions - Send Computer Remote Command to Download and Install macOS Update
 
-jamfAPIAccount="$4" #Required
-jamfAPIPassword="$5" #Required
+jamfAPIAccount="$4" # Required
+jamfAPIPassword="$5" # Required
 logoPath="$6" # Optional
-notificationTitle="$7" #Recommended
-notificationDescription="$8" #Required
+notificationTitle="$7" # Recommended
+notificationDescription="$8" # Required
 hardwareUUID="$(system_profiler SPHardwareDataType | grep "Hardware UUID" | awk '{print $3}')"
 currentUser="$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')"
 currentUserUID="$(/usr/bin/id -u "$currentUser")"
@@ -74,11 +73,13 @@ if [[ "$jamfAPIPassword" = "" ]]; then
   exit 2
 fi
 
+if [[ "$notificationDescription" = "" ]]; then
+  echo "Software update notification description not set, bailing"
+  exit 2
+fi
+
 jamfAuthorizationBase64="$(printf "%s\n" "$jamfAPIAccount:$jamfAPIPassword" | iconv -t ISO-8859-1 | base64 -i -)"
 
-
-# Validate logoPATH file. If no logoPATH is provided or if the file cannot be found at
-# specified path, default to either the Software Update or App Store Icon.
 if [[ -z "$logoPath" ]] || [[ ! -f "$logoPath" ]]; then
   /bin/echo "No logo path provided or no logo exists at specified path, using standard application icon"
   if [[ -f "/System/Library/PreferencePanes/SoftwareUpdate.prefPane/Contents/Resources/SoftwareUpdate.icns" ]]; then

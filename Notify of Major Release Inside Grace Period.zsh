@@ -45,17 +45,38 @@
 # Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with
 # "less than" the number of days you're specifying as the grace period duration
 
-companyPreferenceDomain=$4
-customBrandingImagePath=$5
-majorOSUpdateEvent=$6
+companyPreferenceDomain=$4 # Required
+customBrandingImagePath=$5 # Optional
+majorOSUpgradeBaseVersion=$6 # Required. The version, (i.e. 11.0) to consider n+1
+majorOSUpgradeBaseVersionEpoch="$(awk -F '.' '{print $1}' <<<"$majorOSUpgradeBaseVersion")"
+majorOSUpgradeBaseVersionMajor="$(awk -F '.' '{print $2}' <<<"$majorOSUpgradeBaseVersion")"
+majorOSUpdateEvent=$7 # Required
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.majorSoftwareUpdatePreferences.plist"
 appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate.plist"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdatesNationalRepresentation)"
 gracePeriodWindowCloseDateNationalRepresentation="$(defaults read "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDateNationalRepresentation)"
 macOSSoftwareUpdateGracePeriodinDays="$(defaults read "$softwareUpdatePreferenceFile" macOSSoftwareUpdateGracePeriodinDays)"
+macOSVersionMarketingCompatible="$(sw_vers -productVersion)"
+macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatible")"
+macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirectory | awk -F ': ' '{print $2}')"
+
+if [[ $4 == "" ]]; then
+  echo "Preference Domain was not set, bailing"
+  exit 2
+fi
+
+if [[ $6 == "" ]]; then
+  echo "Major Update version not set, bailing"
+  exit 2
+fi
+
+if [[ $7 == "" ]]; then
+  echo "Major update policy event not set, bailing"
+  exit 2
+fi
 
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
@@ -92,14 +113,28 @@ Auto Installation will start on or about
   )
 }
 
-if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastRecommendedMajorOSBundleIdentifier)" = "" ]]; then
-  echo "Client is up to date, exiting"
-  if [[ -f "$softwareUpdatePreferenceFile" ]]; then
-    echo "Grace period window preference in Place, removing"
-    rm -fv "$softwareUpdatePreferenceFile"
-  fi
-  /usr/local/bin/jamf recon
+if [[ "$macOSVersionEpoch" -ge "11" ]]; then
+  echo "current OS is in the new epoch, using epoch number for further evaluation"
+  if [[ "$macOSVersionEpoch" -eq "$majorOSUpgradeBaseVersionEpoch" ]]; then
+    echo "Client is up to date, exiting"
+      if [[ -f "$softwareUpdatePreferenceFile" ]]; then
+      echo "Grace period window preference in Place, removing"
+      rm -fv "$softwareUpdatePreferenceFile"
+      fi
+    /usr/local/bin/jamf recon
   exit 0
+  fi
+elif [[ "$macOSVersionEpoch" -eq "10" ]]; then
+  echo "current OS is in the prior epoch, using major OS version number for further evaluation"
+  if [[ "$macOSVersionMajor" -ge "$majorOSUpgradeBaseVersionMajor" ]]; then
+    echo "Client is up to date or newer than the version we're expecting, exiting"
+      if [[ -f "$softwareUpdatePreferenceFile" ]]; then
+      echo "Grace period window preference in Place, removing"
+      rm -fv "$softwareUpdatePreferenceFile"
+      fi
+    /usr/local/bin/jamf recon
+  exit 0
+  fi
 fi
 
 if [[ "$currentUser" = "root" ]]; then
@@ -122,5 +157,5 @@ if [ "$userUpdateChoice" -eq "2" ]; then
   defaults write "$softwareUpdatePreferenceFile" UserDeferralDate "$(date "+%Y-%m-%d")"
   exit 0
 elif [ "$userUpdateChoice" -eq "0" ]; then
-	/usr/local/bin/jamf policy -event "$majorOSUpdateEvent" -verbose
+  /usr/local/bin/jamf policy -event "$majorOSUpdateEvent" -verbose
 fi

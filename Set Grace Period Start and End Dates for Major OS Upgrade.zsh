@@ -41,15 +41,24 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-preferenceDomain=$4
-macOSSoftwareUpdateGracePeriodinDays=$5
+preferenceDomain=$4 # Required
+macOSSoftwareUpdateGracePeriodinDays=$5 # Required
 dateMacBecameAwareOfUpdates="$(/bin/date "+%Y-%m-%d")"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B %e")"
 gracePeriodWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")"
 gracePeriodWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorOSSoftwareUpdatePreferences.plist"
 appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate.plist"
-majorOSUpgradeID="$(defaults read $appleSoftwareUpdatePreferenceFile LastRecommendedMajorOSBundleIdentifier | awk -F '.' '{print $4}')"
+
+if [[ $4 == "" ]]; then
+  echo "Preference Domain was not set, bailing"
+  exit 2
+fi
+
+if [[ $5 == "" ]]; then
+  echo "Grace period in days was not set, bailing"
+  exit 2
+fi
 
 setSoftwareUpdateReleaseDate ()
 
@@ -60,15 +69,12 @@ setSoftwareUpdateReleaseDate ()
 		defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
 		defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDate "$gracePeriodWindowClosureDate"
 		defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDateNationalRepresentation "$gracePeriodWindowClosureDateNationalRepresentation"
-		defaults write $softwareUpdatePreferenceFile majorOSUpgradeID "$majorOSUpgradeID"
-  	echo "New Software Update Flexibility Window Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)"
+  	echo "New Software Update Grace Period Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)"
   else
   	echo "Software Update Flexibility is already in place, continuing..."
   fi
 }
 
-
-### Sanity check to ensure that Jamf variables have been set
 if [[ "$preferenceDomain" == "" ]]; then
 	echo "Preference Domain not set as a jamf variable, bailing"
 	exit 2
@@ -77,10 +83,6 @@ if [[ "$macOSSoftwareUpdateGracePeriodinDays" = "" ]]; then
 	echo "Grace Period not set as a jamf variable, bailing"
 	exit 2
 fi
-
-
-### Check for the number of available updates. If none are found, assume the current
-### timers are stale and remove them
 
 if [[ "$majorOSUpgradeID" = "" ]]; then
   echo "Client seems to be up to date"

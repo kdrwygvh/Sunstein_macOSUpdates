@@ -42,14 +42,23 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 
-preferenceDomain=$4
-macOSSoftwareUpdateGracePeriodinDays=$5
+preferenceDomain=$4 # Required
+macOSSoftwareUpdateGracePeriodinDays=$5 # Required
 dateMacBecameAwareOfUpdates="$(/bin/date "+%Y-%m-%d")"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B %e")"
 gracePeriodWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")"
 gracePeriodWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist"
 appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate"
+
+if [[ $4 == "" ]]; then
+  echo "Preference Domain was not set, bailing"
+  exit 2
+fi
+if [[ $5 == "" ]]; then
+  echo "Software Update Grace Period was not set, bailing"
+  exit 2
+fi
 
 setSoftwareUpdateReleaseDate ()
 
@@ -62,26 +71,10 @@ setSoftwareUpdateReleaseDate ()
 			defaults write "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDateNationalRepresentation "$gracePeriodWindowClosureDateNationalRepresentation"
 			echo "New Software Update Flexibility Window Closure Date in Place and datestamped $(defaults read "$softwareUpdatePreferenceFile" GracePeriodWindowCloseDate)"
 		else
-			echo "Software Update Flexibility is already in place, continuing..."
+			echo "grace period window is already in place, continuing..."
 		fi
 	}
 
-### Sanity checks to ensure that Jamf variables have been set
-if [[ $4 == "" ]]; then
-  echo "Preference Domain was not set, bailing"
-  exit 2
-fi
-if [[ $5 == "" ]]; then
-  echo "Software Update Grace Period was not set, bailing"
-  exit 2
-fi
-if [[ "$macOSSoftwareUpdateGracePeriodinDays" != [[:digit:]] ]]; then
-	echo "Grace Period in Days doesn't appear to be an integer, bailing"
-	exit 2
-fi
-
-### Check for the number of available updates. If none are found, assume the current
-### timers are stale and remove them
 if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)" -eq "0" ]]; then
   echo "Client seems to be up to date"
   if [[ -f "$softwareUpdatePreferenceFile" ]]; then

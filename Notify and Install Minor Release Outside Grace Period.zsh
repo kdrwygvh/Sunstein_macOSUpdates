@@ -7,7 +7,6 @@
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
 # Version       :1.2.1
 # Notes         :Updated for Big Sur compatibility. Support for High Sierra Removed
-# shell_version :zsh 5.8 (x86_64-apple-darwin19.3.0)
 
 # The Clear BSD License
 #
@@ -44,12 +43,12 @@
 
 # Jamf Pro Usage
 # Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with "more than"
-# the number of days you're specifying as the grace period duration.
+# the number of days you're specifying as the grace period duration
 
-companyPreferenceDomain=$4
-customBrandingImagePath=$5
-mdmSoftwareUpdateEvent=$6
-notificationTitle="$7"
+companyPreferenceDomain=$4 # Required
+customBrandingImagePath=$5 # Optional
+mdmSoftwareUpdateEvent=$6 # Required
+notificationTitle="$7" #Optional
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirectory | awk -F ': ' '{print $2}')"
@@ -57,14 +56,23 @@ jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
 appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate.plist"
 
+if [[ $4 == "" ]]; then
+  echo "Preference Domain was not set, bailing"
+  exit 2
+fi
+
+if [[ $6 == "" ]]; then
+  echo "Policy event to trigger MDM update not set, bailing"
+  exit 2
+fi
+
 if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
 	echo "Software Update Preferences not yet in place, bailing for now"
-	/usr/local/bin/jamf recon
 	exit 0
 fi
 
 if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)" -eq "0" ]]; then
-  echo "Client is up to date or has not yet cached needed updates, exiting"
+  echo "Client is up to date or has not yet identified needed updates, exiting"
   if [[ -f "$softwareUpdatePreferenceFile" ]]; then
     echo "Grace Period window in Place, removing"
     rm -fv "$softwareUpdatePreferenceFile"
@@ -93,7 +101,7 @@ softwareUpdateNotification(){
 	-title "$notificationTitle" \
 	-description "Updates are available which we'd suggest installing today at your earliest opportunity.
 
-	You'll be presented with available updates to install after clicking 'Update Now'" \
+You'll be presented with available updates to install after clicking 'Update Now'" \
 	-alignDescription left \
 	-icon "$dialogImagePath" \
 	-iconSize 120 \
@@ -111,7 +119,7 @@ if [[ "$currentUser" = "root" ]]; then
   elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
     echo "Updates found which require restart. Installing and restarting...but only on Intel based systems"
     if [[ "$(arch)" = "arm64" ]]; then
-    	echo "Command line updates are not supported on Apple Silicon, falling back to MDM command"
+    	echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"
     	/usr/local/bin/jamf policy -event "$mdmSoftwareUpdateEvent" -verbose
     else
     	softwareupdate --install --all --restart --verbose

@@ -45,8 +45,8 @@
 # Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with
 # "less than" the number of days you're specifying as the grace period duration
 
-companyPreferenceDomain=$4
-customBrandingImagePath=$5
+companyPreferenceDomain=$4 # Required
+customBrandingImagePath=$5 # Optional
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
 appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate.plist"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
@@ -56,6 +56,12 @@ macOSSoftwareUpdateGracePeriodinDays="$(defaults read $softwareUpdatePreferenceF
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
+
+
+if [[ $4 == "" ]]; then
+  echo "Preference Domain was not set, bailing"
+  exit 2
+fi
 
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
@@ -92,11 +98,10 @@ Auto Installation will start on or about
   )
 }
 
-### Remove a grace period window if the client is already up to date
 if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)" -eq 0 ]]; then
   echo "Client is up to date, exiting"
   if [[ -f $softwareUpdatePreferenceFile ]]; then
-    echo "Flexibility window preference in Place, removing"
+    echo "grace period window preference in place, removing"
     rm -fv $softwareUpdatePreferenceFile
   fi
   /usr/local/bin/jamf recon
@@ -105,12 +110,9 @@ fi
 
 if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
 	echo "Software Update Preferences not yet in place, bailing for now"
-	/usr/local/bin/jamf recon
 	exit 0
 fi
 
-### Two conditions for which we'll not display the software update notification
-### if the Mac is at the login window or if the user has enabled 'do not disturb'
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, not bothering with presenting the software update notification this time around"
   exit 0
