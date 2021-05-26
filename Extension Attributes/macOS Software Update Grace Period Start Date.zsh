@@ -46,10 +46,9 @@
 companyPreferenceDomain=""
 
 if [[ "$companyPreferenceDomain" = "" ]]; then
-	echo "No preference domain set, reverting to com.github"
-	companyPreferenceDomain="com.github"
+	echo "No preference domain set, exiting with error"
+	exit 2
 fi
-
 
 if [[ ! -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
 	echo "<result>None</result>"
