@@ -83,6 +83,8 @@ if [[ "$(arch)" = "arm64" ]]; then
 	if [[ "$(profiles status -type bootstraptoken | grep "Bootstrap Token escrowed to server" | awk -F ': ' '{print $3}')" != "YES" ]]; then
 		echo "Software updates via MDM cannot contine, bootstrap token not escrowed to MDM server, bailing"
 		exit 2
+	else
+		echo "bootstrap token is escrowed, continuing"
 	fi
 fi
 
