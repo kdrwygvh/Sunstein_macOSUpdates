@@ -360,6 +360,10 @@ downloadOSInstaller ()
       if softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion"; then
         echo "Download from Apple CDN was successful"
       else
+      	isMajorOSUpdateDeferred=$(system_profiler SPConfigurationProfileDataType | grep -c enforcedSoftwareUpdateMajorOSDeferredInstallDelay)
+      	if [[ "$isMajorOSUpdateDeferred" -ge "1" ]]; then
+      		echo "Major OS Update Deferral is in effect, are you sure you're requesting an installer outside your deferral window?"
+      	fi
         echo "Download from Apple CDN was not successfull, falling back to Jamf download if available"
         if [[ "$macOSInstallAppJamfEvent" != "" ]]; then
           if ! /usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent"; then
