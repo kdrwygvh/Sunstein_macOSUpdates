@@ -78,6 +78,14 @@ if [[ "$notificationDescription" = "" ]]; then
   exit 2
 fi
 
+if [[ "$(arch)" = "arm64" ]]; then
+	echo "checking bootstrap token escrow status"
+	if [[ "$(profiles status -type bootstraptoken | grep "Bootstrap Token escrowed to server" | awk -F ': ' '{print $3}')" != "YES" ]]; then
+		echo "Software updates via MDM cannot contine, bootstrap token not escrowed to MDM server, bailing"
+		exit 2
+	fi
+fi
+
 jamfAuthorizationBase64="$(printf "%s\n" "$jamfAPIAccount:$jamfAPIPassword" | iconv -t ISO-8859-1 | base64 -i -)"
 
 if [[ -z "$logoPath" ]] || [[ ! -f "$logoPath" ]]; then
@@ -107,7 +115,7 @@ elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
 	fi
 fi
 
-## POST Software Update MDM Command. Will only work on ABM enrolled devices or Big Sur Devices that are supervised with a user approved MDM enrollment profile
+## POST Software Update MDM Command. Will only work on ABM enrolled devices or Big Sur Devices that are supervised with a user approved MDM enrollment profile and escrowed bootstrap token
 curl -s -f -X "POST" "$jamfManagementURL""JSSResource/computercommands/command/ScheduleOSUpdate/action/install/id/$jamfComputerID" \
      -H "Authorization: Basic $jamfAuthorizationBase64" \
      -H 'Cache-Control: no-cache'
