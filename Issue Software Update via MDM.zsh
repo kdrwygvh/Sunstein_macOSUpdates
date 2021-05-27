@@ -57,10 +57,10 @@ jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/
 jamfManagementURL="$(defaults read /Library/Preferences/com.jamfsoftware.jamf jss_url)"
 
 if [[ "$currentUser" = "root" ]]; then
-	echo "User is not logged into GUI, console, or remote session"
-	userLoggedInStatus=0
+  echo "User is not logged into GUI, console, or remote session"
+  userLoggedInStatus=0
 else
-	userLoggedInStatus=1
+  userLoggedInStatus=1
 fi
 
 if [[ "$jamfAPIAccount" = "" ]]; then
@@ -79,13 +79,13 @@ if [[ "$notificationDescription" = "" ]]; then
 fi
 
 if [[ "$(arch)" = "arm64" ]]; then
-	echo "checking bootstrap token escrow status"
-	if [[ "$(profiles status -type bootstraptoken | grep "Bootstrap Token escrowed to server" | awk -F ': ' '{print $3}')" != "YES" ]]; then
-		echo "Software updates via MDM cannot contine, bootstrap token not escrowed to MDM server, bailing"
-		exit 2
-	else
-		echo "bootstrap token is escrowed, continuing"
-	fi
+  echo "checking bootstrap token escrow status"
+  if [[ "$(profiles status -type bootstraptoken | grep "Bootstrap Token escrowed to server" | awk -F ': ' '{print $3}')" != "YES" ]]; then
+    echo "Software updates via MDM cannot contine, bootstrap token not escrowed to MDM server, bailing"
+    exit 2
+  else
+    echo "bootstrap token is escrowed, continuing"
+  fi
 fi
 
 jamfAuthorizationBase64="$(printf "%s\n" "$jamfAPIAccount:$jamfAPIPassword" | iconv -t ISO-8859-1 | base64 -i -)"
@@ -108,13 +108,13 @@ if [[ "$numberofUpdatesRequringRestart" -eq "0" ]]; then
 elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
   echo "Updates that require a restart were found, notifying user"
   if [[ "$userLoggedInStatus" -eq "1" ]]; then
-		/bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-		-icon "$logoPath" \
-		-title "$notificationTitle" \
-		-description "$notificationDescription" \
-		-button1 "OK" \
-		-startlaunchd &
-	fi
+    /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+    -icon "$logoPath" \
+    -title "$notificationTitle" \
+    -description "$notificationDescription" \
+    -button1 "OK" \
+    -startlaunchd &
+  fi
 fi
 
 ## POST Software Update MDM Command. Will only work on ABM enrolled devices or Big Sur Devices that are supervised with a user approved MDM enrollment profile and escrowed bootstrap token
