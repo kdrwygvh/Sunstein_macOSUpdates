@@ -5,7 +5,7 @@
 # Author        :John Hutchison
 # Date          :2021-05-18
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.2.1
+# Version       :1.2.1.1
 # Notes         :Updated for compatibility with Big Sur. Support for High Sierra removed
 
 # The Clear BSD License
@@ -56,12 +56,30 @@ macOSSoftwareUpdateGracePeriodinDays="$(defaults read $softwareUpdatePreferenceF
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
+doNotDisturbApplePlistID='com.apple.ncprefs'
+doNotDisturbApplePlistKey='dnd_prefs'
+doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
 
+doNotDisturbAppBundleIDs=(
+  "us.zoom.xos"
+  "com.microsoft.teams"
+  "com.cisco.webexmeetingsapp"
+  "com.apple.FaceTime"
+  "com.apple.iWork.Keynote"
+  "com.microsoft.Powerpoint"
+)
 
-if [[ $4 == "" ]]; then
-  echo "Preference Domain was not set, bailing"
-  exit 2
-fi
+doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
+
+getNestedDoNotDisturbPlist(){
+  plutil -extract $2 xml1 -o - $1 | \
+    xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
+}
+
+getDoNotDisturbStatus(){
+  getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
+    xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
+}
 
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
@@ -98,6 +116,11 @@ Auto Installation will start on or about
   )
 }
 
+if [[ $4 == "" ]]; then
+  echo "Preference Domain was not set, bailing"
+  exit 2
+fi
+
 if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)" -eq 0 ]]; then
   echo "Client is up to date, exiting"
   if [[ -f $softwareUpdatePreferenceFile ]]; then
@@ -117,13 +140,19 @@ if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, not bothering with presenting the software update notification this time around"
   exit 0
 elif [[ "$currentUser" != "root" ]]; then
-  doNotDisturbState="$(defaults read $currentUserHomeDirectoryPath/Library/Preferences/ByHost/com.apple.notificationcenterui.plist doNotDisturb)"
-  if [[ "$doNotDisturbState" -eq "1" ]]; then
-    echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
-    exit 0
-  else
-    echo "Do not disturb is disabled, safe to proceed with software update notification"
-  fi
+  frontAppASN="$(lsappinfo front)"
+  for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
+    frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
+    if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
+      echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification"
+      exit 0
+    fi
+  done
+elif [[ $(getDoNotDisturbStatus) = "true" ]]; then
+  echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
+  exit 0
+else
+  echo "Do not disturb is disabled, safe to proceed with software update notification"
 fi
 
 softwareUpdateNotification

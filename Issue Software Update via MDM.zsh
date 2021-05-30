@@ -5,7 +5,7 @@
 # Author        :John Hutchison
 # Date          :2021-05-25
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.0
+# Version       :1.0.1
 # Notes         :
 
 # The Clear BSD License
@@ -51,10 +51,35 @@ logoPath="$6" # Optional
 notificationTitle="$7" # Recommended
 notificationDescription="$8" # Required
 hardwareUUID="$(system_profiler SPHardwareDataType | grep "Hardware UUID" | awk '{print $3}')"
-currentUser="$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')"
-currentUserUID="$(/usr/bin/id -u "$currentUser")"
+currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
+currentUserUID=$(/usr/bin/id -u "$currentUser")
+currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 jamfManagementURL="$(defaults read /Library/Preferences/com.jamfsoftware.jamf jss_url)"
+doNotDisturbApplePlistID='com.apple.ncprefs'
+doNotDisturbApplePlistKey='dnd_prefs'
+doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
+
+doNotDisturbAppBundleIDs=(
+  "us.zoom.xos"
+  "com.microsoft.teams"
+  "com.cisco.webexmeetingsapp"
+  "com.apple.FaceTime"
+  "com.apple.iWork.Keynote"
+  "com.microsoft.Powerpoint"
+)
+
+doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
+
+getNestedDoNotDisturbPlist(){
+  plutil -extract $2 xml1 -o - $1 | \
+    xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
+}
+
+getDoNotDisturbStatus(){
+  getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
+    xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
+}
 
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not logged into GUI, console, or remote session"
@@ -106,15 +131,27 @@ numberofUpdatesRequringRestart="$(/usr/sbin/softwareupdate -l | /usr/bin/grep -i
 if [[ "$numberofUpdatesRequringRestart" -eq "0" ]]; then
   echo "No updates found which require a restart, suppressing notifications"
 elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
-  echo "Updates that require a restart were found, notifying user"
+  echo "Updates that require a restart were found, checking for do not disturb apps"
   if [[ "$userLoggedInStatus" -eq "1" ]]; then
-    /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-    -icon "$logoPath" \
-    -title "$notificationTitle" \
-    -description "$notificationDescription" \
-    -button1 "OK" \
-    -startlaunchd &
+    for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
+      frontAppASN="$(lsappinfo front)"
+      frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
+      if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
+        echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification and bailing"
+        exit 0
+      fi
+    done
+    if [[ $(getDoNotDisturbStatus) = "true" ]]; then
+      echo "Do not disturb enabled by user, not displaying notification and bailing"
+      exit 0
+    fi
   fi
+  /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+  -icon "$logoPath" \
+  -title "$notificationTitle" \
+  -description "$notificationDescription" \
+  -button1 "OK" \
+  -startlaunchd &
 fi
 
 ## POST Software Update MDM Command. Will only work on ABM enrolled devices or Big Sur Devices that are supervised with a user approved MDM enrollment profile and escrowed bootstrap token

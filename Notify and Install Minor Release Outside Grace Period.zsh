@@ -5,7 +5,7 @@
 # Author        :John Hutchison
 # Date          :2021-05-18
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.2.1
+# Version       :1.2.1.1
 # Notes         :Updated for Big Sur compatibility. Support for High Sierra Removed
 
 # The Clear BSD License
@@ -55,31 +55,28 @@ currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirect
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
 appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate.plist"
+doNotDisturbApplePlistID='com.apple.ncprefs'
+doNotDisturbApplePlistKey='dnd_prefs'
+doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
 
-if [[ $4 == "" ]]; then
-  echo "Preference Domain was not set, bailing"
-  exit 2
-fi
+doNotDisturbAppBundleIDs=(
+  "us.zoom.xos"
+  "com.microsoft.teams"
+  "com.cisco.webexmeetingsapp"
+  "com.apple.FaceTime"
+  "com.apple.iWork.Keynote"
+  "com.microsoft.Powerpoint"
+)
 
-if [[ $6 == "" ]]; then
-  echo "Policy event to trigger MDM update not set, bailing"
-  exit 2
-fi
+getNestedDoNotDisturbPlist(){
+  plutil -extract $2 xml1 -o - $1 | \
+    xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
+}
 
-if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
-  echo "Software Update Preferences not yet in place, bailing for now"
-  exit 0
-fi
-
-if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)" -eq "0" ]]; then
-  echo "Client is up to date or has not yet identified needed updates, exiting"
-  if [[ -f "$softwareUpdatePreferenceFile" ]]; then
-    echo "Grace Period window in Place, removing"
-    rm -fv "$softwareUpdatePreferenceFile"
-  fi
-  /usr/local/bin/jamf recon
-  exit 0
-fi
+getDoNotDisturbStatus(){
+  getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
+    xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
+}
 
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
@@ -110,6 +107,31 @@ You'll be presented with available updates to install after clicking 'Update Now
   -timeout 300
 }
 
+if [[ $4 == "" ]]; then
+  echo "Preference Domain was not set, bailing"
+  exit 2
+fi
+
+if [[ $6 == "" ]]; then
+  echo "Policy event to trigger MDM update not set, bailing"
+  exit 2
+fi
+
+if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
+  echo "Software Update Preferences not yet in place, bailing for now"
+  exit 0
+fi
+
+if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)" -eq "0" ]]; then
+  echo "Client is up to date or has not yet identified needed updates, exiting"
+  if [[ -f "$softwareUpdatePreferenceFile" ]]; then
+    echo "Grace Period window in Place, removing"
+    rm -fv "$softwareUpdatePreferenceFile"
+  fi
+  /usr/local/bin/jamf recon
+  exit 0
+fi
+
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, safe to perform all updates and restart now if required"
   numberofUpdatesRequringRestart="$(/usr/sbin/softwareupdate -l | /usr/bin/grep -i -c 'restart')"
@@ -127,13 +149,23 @@ if [[ "$currentUser" = "root" ]]; then
   fi
 fi
 
-doNotDisturbState="$(defaults read "$currentUserHomeDirectoryPath"/Library/Preferences/ByHost/com.apple.notificationcenterui.plist doNotDisturb)"
-if [[ ${doNotDisturbState} -eq 1 ]]; then
+for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
+  frontAppASN="$(lsappinfo front)"
+  frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
+  if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
+    echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification"
+    exit 0
+  fi
+done
+
+if [[ $(getDoNotDisturbStatus) = "true" ]]; then
   echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
   exit 0
 fi
+
 softwareUpdateNotification
 if [[ $(pgrep "System Preferences") != "" ]]; then
   killall "System Preferences"
 fi
+
 /bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"

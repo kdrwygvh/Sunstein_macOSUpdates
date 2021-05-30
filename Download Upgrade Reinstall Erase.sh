@@ -5,12 +5,13 @@
 # Author        :John Hutchison
 # Date          :2021-05-18
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.3.2
+# Version       :1.3.2.1
 # Notes         : Updated to support disk spce checking on HFS+ filesystems
 #                 Updated to use custom installer paths
 #                 Updated to do variable free space checks based target upgrade OS
 #                 Updated to allow for download of macOS in the absence of an interactive login
 #                 Updated to account for multiple copies of macOS Install.app on disk
+#                 Added Do Not Disturb checks
 
 # The Clear BSD License
 #
@@ -112,7 +113,34 @@ logoPath_POSIX="$(/usr/bin/osascript -e 'tell application "System Events" to ret
 # Collecting current user attributes ###
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
+currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
 ##########################################################################################
+
+# Do Not Disturb variables and functions
+doNotDisturbApplePlistID='com.apple.ncprefs'
+doNotDisturbApplePlistKey='dnd_prefs'
+doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
+
+doNotDisturbAppBundleIDs=(
+  "us.zoom.xos"
+  "com.microsoft.teams"
+  "com.cisco.webexmeetingsapp"
+  "com.apple.FaceTime"
+  "com.apple.iWork.Keynote"
+  "com.microsoft.Powerpoint"
+)
+
+doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
+
+getNestedDoNotDisturbPlist(){
+  plutil -extract $2 xml1 -o - $1 | \
+    xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
+}
+
+getDoNotDisturbStatus(){
+  getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
+    xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
+}
 
 # Collect the OS version in various formats
 # macOSVersionScriptCompatible is available in Big Sur and on and shows the 10.x version of macOS
@@ -360,10 +388,10 @@ downloadOSInstaller ()
       if softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion"; then
         echo "Download from Apple CDN was successful"
       else
-      	isMajorOSUpdateDeferred=$(system_profiler SPConfigurationProfileDataType | grep -c enforcedSoftwareUpdateMajorOSDeferredInstallDelay)
-      	if [[ "$isMajorOSUpdateDeferred" -ge "1" ]]; then
-      		echo "Major OS Update Deferral is in effect, are you sure you're requesting an installer outside your deferral window?"
-      	fi
+        isMajorOSUpdateDeferred=$(system_profiler SPConfigurationProfileDataType | grep -c enforcedSoftwareUpdateMajorOSDeferredInstallDelay)
+        if [[ "$isMajorOSUpdateDeferred" -ge "1" ]]; then
+          echo "Major OS Update Deferral is in effect, are you sure you're requesting an installer outside your deferral window?"
+        fi
         echo "Download from Apple CDN was not successfull, falling back to Jamf download if available"
         if [[ "$macOSInstallAppJamfEvent" != "" ]]; then
           if ! /usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent"; then
@@ -406,98 +434,112 @@ downloadOSInstaller ()
 
 passwordPromptAppleSilicon ()
 {
-    if [[ "$currentUser" = "root" ]]; then
-      echo "macOS on Apple Silicon cannot be upgraded without an active login, bailing"
-      exit 0
-    else
-      echo "Prompting $currentUser for their new password..."
-      promptTitle="Attention"
-      userPassword="$(/bin/launchctl asuser "$currentUserUID" /usr/bin/osascript -e 'display dialog "Please enter your password to proceed with the software update" default answer "" with title "'"${promptTitle//\"/\\\"}"'" giving up after 86400 with text buttons {"OK","Cancel"} default button 1 with hidden answer with icon file "'"${logoPath_POSIX//\"/\\\"}"'"' -e 'return text returned of result')"
-      # Check the user's password against the local Open Directory store
-      TRY=1
-      while [[ "$(/usr/bin/dscl /Search -authonly "$currentUser" "$userPassword" &> /dev/null; echo $?)" -ne 0 ]]; do
-        ((TRY++))
-        echo "Prompting $currentUser for their Mac password again attempt $TRY..."
-        userPassword="$(/bin/launchctl asuser "$currentUserUID" /usr/bin/osascript -e 'display dialog "Please re-type your password" default answer "" with title "'"${promptTitle//\"/\\\"}"'" giving up after 86400 with text buttons {"OK"} default button 1 with hidden answer with icon file "'"${logoPath_POSIX//\"/\\\"}"'"' -e 'return text returned of result')"
-        if [[ "$(/usr/bin/dscl /Search -authonly "$currentUser" "$userPassword" &> /dev/null; echo $?)" -ne 0 ]]; then
-          if (( $TRY >= 2 )); then
-            echo "[ERROR] Password prompt unsuccessful after 2 attempts. Displaying \"forgot password\" message..."
-            /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-          -icon "$logoPath" \
-          -title "Authentication" \
-          -description "Your password seems to be incorrect. Verify that you are using the correct password for Mac authentication and try again..." \
-          -button1 'Stop' \
-          -defaultButton 1 \
-          -startlaunchd &>/dev/null &
-            exit 1
-          fi
+  if [[ "$currentUser" = "root" ]]; then
+    echo "macOS on Apple Silicon cannot be upgraded without an active login, bailing"
+    exit 0
+  else
+    echo "Prompting $currentUser for their new password..."
+    promptTitle="Attention"
+    userPassword="$(/bin/launchctl asuser "$currentUserUID" /usr/bin/osascript -e 'display dialog "Please enter your password to proceed with the software update" default answer "" with title "'"${promptTitle//\"/\\\"}"'" giving up after 86400 with text buttons {"OK","Cancel"} default button 1 with hidden answer with icon file "'"${logoPath_POSIX//\"/\\\"}"'"' -e 'return text returned of result')"
+    # Check the user's password against the local Open Directory store
+    TRY=1
+    while [[ "$(/usr/bin/dscl /Search -authonly "$currentUser" "$userPassword" &> /dev/null; echo $?)" -ne 0 ]]; do
+      ((TRY++))
+      echo "Prompting $currentUser for their Mac password again attempt $TRY..."
+      userPassword="$(/bin/launchctl asuser "$currentUserUID" /usr/bin/osascript -e 'display dialog "Please re-type your password" default answer "" with title "'"${promptTitle//\"/\\\"}"'" giving up after 86400 with text buttons {"OK"} default button 1 with hidden answer with icon file "'"${logoPath_POSIX//\"/\\\"}"'"' -e 'return text returned of result')"
+      if [[ "$(/usr/bin/dscl /Search -authonly "$currentUser" "$userPassword" &> /dev/null; echo $?)" -ne 0 ]]; then
+        if (( $TRY >= 2 )); then
+          echo "[ERROR] Password prompt unsuccessful after 2 attempts. Displaying \"forgot password\" message..."
+          /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+        -icon "$logoPath" \
+        -title "Authentication" \
+        -description "Your password seems to be incorrect. Verify that you are using the correct password for Mac authentication and try again..." \
+        -button1 'Stop' \
+        -defaultButton 1 \
+        -startlaunchd &>/dev/null &
+          exit 1
         fi
-      done
-    fi
-  }
+      fi
+    done
+  fi
+}
 
 startOSInstaller ()
 {
-    if [[ -d /Volumes/InstallESD ]]; then
-      echo "Unmounting InstallESD in preparation for new install"
-      diskutil unmount /Volumes/InstallESD
-    fi
-    if [[ -d /Volumes/"Shared Support" ]]; then
-      echo "Unmounting Shared Support in preparation for new install"
-      diskutil unmount /Volumes/"Shared Support"
-    fi
-    if [[ "$currentUser" = "root" ]]; then
-      echo "Nobody logged in, install cannot continue, bailing"
-      exit 0
-    else
-      /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-    -icon "$logoPath" \
-    -title "Preparing macOS Install" \
-    -description "Your macOS installation is being prepared. You can continue working and we'll notify you when it's time to restart..." \
-    -button1 "OK" \
-    -defaultButton 1 \
-    -startlaunchd &>/dev/null &
-      if [[ "$installAction" = "erase" ]] && [[ "$(arch)" = "arm64" ]]; then
-        echo "$userPassword" | "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --agreetolicense --rebootdelay "60" --nointeraction --user "$currentUser" --stdinpass &
-      elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" = "arm64" ]]; then
-        echo "$userPassword" | "$startOSInstall" --agreetolicense --rebootdelay "60" --nointeraction --user "$currentUser" --stdinpass &
-      elif [[ "$installAction" = "erase" ]] && [[ "$(arch)" != "arm64" ]]; then
-        "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --agreetolicense --rebootdelay "60" --nointeraction &
-      elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" != "arm64" ]]; then
-        "$startOSInstall" --agreetolicense --rebootdelay "60" --nointeraction &
-      fi
-      sleep 10
-      while [[ "$(pgrep startosinstall)" != "" ]]; do
-        echo "waiting for startosinstall to finish before bringing up final reboot notification"
-        sleep 1
-      done
-      if [[ "$runHeadless" = "true" ]]; then
-        echo "Running headless, skipping reboot notification and quitting all userland applications"
-      else
-        /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+  if [[ -d /Volumes/InstallESD ]]; then
+    echo "Unmounting InstallESD in preparation for new install"
+    diskutil unmount /Volumes/InstallESD
+  fi
+  if [[ -d /Volumes/"Shared Support" ]]; then
+    echo "Unmounting Shared Support in preparation for new install"
+    diskutil unmount /Volumes/"Shared Support"
+  fi
+  if [[ "$currentUser" = "root" ]]; then
+    echo "Nobody logged in, install cannot continue, bailing"
+    exit 0
+  else
+    /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
   -icon "$logoPath" \
-  -title "Restarting Now" \
-  -description "Your Mac will reboot now to start the update process. Your screen may turn on and off several times during the update. This is normal. Please do not press the power button during the update." \
+  -title "Preparing macOS Install" \
+  -description "Your macOS installation is being prepared. You can continue working and we'll notify you when it's time to restart..." \
   -button1 "OK" \
   -defaultButton 1 \
   -startlaunchd &>/dev/null &
-      fi
+    if [[ "$installAction" = "erase" ]] && [[ "$(arch)" = "arm64" ]]; then
+      echo "$userPassword" | "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --agreetolicense --rebootdelay "60" --nointeraction --user "$currentUser" --stdinpass &
+    elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" = "arm64" ]]; then
+      echo "$userPassword" | "$startOSInstall" --agreetolicense --rebootdelay "60" --nointeraction --user "$currentUser" --stdinpass &
+    elif [[ "$installAction" = "erase" ]] && [[ "$(arch)" != "arm64" ]]; then
+      "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --agreetolicense --rebootdelay "60" --nointeraction &
+    elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" != "arm64" ]]; then
+      "$startOSInstall" --agreetolicense --rebootdelay "60" --nointeraction &
     fi
+    sleep 10
+    while [[ "$(pgrep startosinstall)" != "" ]]; do
+      echo "waiting for startosinstall to finish before bringing up final reboot notification"
+      sleep 1
+    done
+    if [[ "$runHeadless" = "true" ]]; then
+      echo "Running headless, skipping reboot notification and quitting all userland applications"
+    else
+      /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+-icon "$logoPath" \
+-title "Restarting Now" \
+-description "Your Mac will reboot now to start the update process. Your screen may turn on and off several times during the update. This is normal. Please do not press the power button during the update." \
+-button1 "OK" \
+-defaultButton 1 \
+-startlaunchd &>/dev/null &
+    fi
+  fi
   }
 
+if [[ $(getDoNotDisturbStatus) = "true" ]]; then
+  echo "Do Not Disturb is enabled, leaving the user alone and bailing now"
+  exit 0
+fi
+
+frontAppASN="$(lsappinfo front)"
+for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
+  frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
+  if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
+    echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification and bailing"
+    exit 0
+  fi
+done
+
 if [[ "$currentUser" = "root" ]]; then
-	echo "Nobody is logged in, assume runheadless and proceed as far as we can without an interactive session"
-	runHeadless="true"
+  echo "Nobody is logged in, assume runheadless and proceed as far as we can without an interactive session"
+  runHeadless="true"
 fi
 
 if [[ "$runHeadless" = "true" ]]; then
-	preUpgradeJamfPolicies
-	downloadOSInstaller
+  preUpgradeJamfPolicies
+  downloadOSInstaller
 else
-	checkBatteryStatus
-	checkAvailableDiskSpace
-	preUpgradeJamfPolicies
-	downloadOSInstaller
+  checkBatteryStatus
+  checkAvailableDiskSpace
+  preUpgradeJamfPolicies
+  downloadOSInstaller
 fi
 
 # Check which install action was set by Jamf Policy and change the notification language appropriately
@@ -512,8 +554,8 @@ elif [[ "$installAction" = "upgrade" ]]; then
   rebootActionTitle="Upgrade macOS"
   rebootActionDescription="Your Mac will be upgraded to the latest version of macOS. All of your files and settings will be preserved. Expected upgrade time is approximately 20-40 minutes..."
 elif [[ "$installAction" = "downloadonly" ]]; then
-	echo "Download only was selected, bailing out"
-	exit 0
+  echo "Download only was selected, bailing out"
+  exit 0
 fi
 
 if [[ "$currentUser" = "root" ]]; then
