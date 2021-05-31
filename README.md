@@ -16,20 +16,22 @@ critera should for the attribute containing your grace period window start date 
 
 A similar smart group should be made for clients outside the grace period window; the grace period window start date with a criteria of *"more than x days ago"* where x is the length of your desired grace period window in days.
 
-3. Create a policy that runs the *"Sunstein_Set OS Software Update Grace Period Window Closure Date"* script at some regular interval.
+3. Create a policy that runs the *"Set Grace Period Start and End Dates for Minor Update.zsh"* script at some regular interval.
 I'd strongly suggest creating a smart group using criteria *"Number of Available Updates is Greater Than 0"* to scope the policy to.
 Because macOS may perform updates between Jamf inventory updates the script will check to see if any updates are actually available
 and only if they are will the macOS client be stamped with grace period window start and end dates.
 
-4. Create a policy that runs the *"Sunstein_Notify User of Pending Updates_Inside Grace Period Window"* script at some regular interval.
+4. Create a policy that runs the *"Notify of Major Release Inside Grace Period.zsh"* script at some regular interval.
 This policy should be scoped to the smart group you created in step two for systems within the grace period window.
 This policy should also only run during business hours. If a notification pops up in the middle of the night and nobody is there to see it, did it happen?
 Because macOS may perform updates between Jamf inventory updates the script will check to see if any updates are actually available
 and only if they are will the user be presented with a notification.
 
-5. Create a policy that runs the *"Sunstein_Install all Outstanding Updates_Outside Grace Period Window"* script at some regular interval.
+5. Create a policy that runs the *"Notify and Install Minor Release Outside Grace Period.zsh"* script at some regular interval.
 This policy should also only run during business hours. If a notification pops up in the middle of the night and nobody is there to see it, did it happen?
 This policy should be scoped to the smart group you created in step two for systems outside of the grace period window.
 
 
 Also included in this project are two scripts for setting the com.apple.SoftwareUpdate preference keys. They're in 'Extras.' For clients inside the flexibility window only basic checking and downloading of updates is performed. For clients outside the flexibility window all automatic updates are turned on. I'm currently using a script based approach rather than MDM for these keys because of the flexibility scripts offer but MDM profiles would work just as well.
+
+Variations on the scripts to accomodate major OS upgrades are also included, as is a meta script that download, erase, re-install, or upgrade macOS itself.
