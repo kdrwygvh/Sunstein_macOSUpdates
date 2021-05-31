@@ -514,16 +514,16 @@ startOSInstaller ()
   }
 
 if [[ $(getDoNotDisturbStatus) = "true" ]]; then
-  echo "Do Not Disturb is enabled, leaving the user alone and bailing now"
-  exit 0
+  echo "Do Not Disturb is enabled, assuming runheadless operation"
+  runheadless="true"
 fi
 
 frontAppASN="$(lsappinfo front)"
 for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
   frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
   if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
-    echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification and bailing"
-    exit 0
+    echo "Do not disturb app $frontAppBundleID is frontmost, assuming runheadless operation"
+    runheadless="true"
   fi
 done
 
