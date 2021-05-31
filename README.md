@@ -34,4 +34,4 @@ This policy should be scoped to the smart group you created in step two for syst
 
 Also included in this project are two scripts for setting the com.apple.SoftwareUpdate preference keys. They're in 'Extras.' For clients inside the flexibility window only basic checking and downloading of updates is performed. For clients outside the flexibility window all automatic updates are turned on. I'm currently using a script based approach rather than MDM for these keys because of the flexibility scripts offer but MDM profiles would work just as well.
 
-Variations on the scripts to accomodate major OS upgrades are also included, as is a meta script that download, erase, re-install, or upgrade macOS itself.
+Variations on the scripts to accomodate major OS upgrades are also included, as is a meta script that can download, erase, re-install, or upgrade macOS itself.
