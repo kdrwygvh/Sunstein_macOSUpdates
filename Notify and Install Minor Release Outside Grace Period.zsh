@@ -59,6 +59,13 @@ doNotDisturbApplePlistID='com.apple.ncprefs'
 doNotDisturbApplePlistKey='dnd_prefs'
 doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
 
+# macOSVersionMarketingCompatible is the commerical version number of macOS (10.x, 11.x)
+# macOSVersionEpoch is the major version number and is meant to draw a line between Big Sur and all prior versions of macOS
+# macOSVersionMajor is the current dot releaes of macOS (15 in 10.15)
+macOSVersionMarketingCompatible="$(sw_vers -productVersion)"
+macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatible")"
+macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
+
 doNotDisturbAppBundleIDs=(
   "us.zoom.xos"
   "com.microsoft.teams"
@@ -167,8 +174,9 @@ if [[ $(getDoNotDisturbStatus) = "true" ]]; then
 fi
 
 softwareUpdateNotification
-if [[ $(pgrep "System Preferences") != "" ]]; then
-  killall "System Preferences"
-fi
 
-/bin/launchctl asuser "$currentUserUID" /usr/bin/open "/System/Library/CoreServices/Software Update.app"
+if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" ]]; then
+  /bin/launchctl asuser "$currentUserUID" /usr/bin/open "x-apple.systempreferences:com.apple.preferences.softwareupdate"
+elif [[ "$macOSVersionMajor" -le "13" ]]; then
+  /bin/launchctl asuser "$currentUserUID" /usr/bin/open "macappstore://showUpdatesPage"
+fi
