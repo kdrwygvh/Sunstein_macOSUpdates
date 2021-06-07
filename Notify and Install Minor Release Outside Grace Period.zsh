@@ -69,6 +69,8 @@ doNotDisturbAppBundleIDs=(
   "com.microsoft.Powerpoint"
 )
 
+doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
+
 getNestedDoNotDisturbPlist(){
   plutil -extract $2 xml1 -o - $1 | \
     xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
