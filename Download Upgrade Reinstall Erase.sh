@@ -301,28 +301,36 @@ checkAvailableDiskSpace ()
   availableDiskSpaceMeasure="$(diskutil info / | grep -E 'Container Free Space|Volume Free Space' | awk '{print $5}')"
   if [[ "$availableDiskSpaceMeasure" = "TB" ]]; then
     echo "at least 1 TB of space is available, continuing"
-  elif [[ "$availableDiskSpaceMeasure" = "GB" && "$availableDiskSpaceBytes" -ge "45000000000" ]]; then
-    echo "at least 45 GB of space is available, enough free space for any OS upgrade, continuing"
+  elif [[ "$availableDiskSpaceMeasure" = "GB" && "$availableDiskSpaceBytes" -ge "48000000000" ]]; then
+    echo "at least 48 GB of space is available, enough free space for any OS upgrade, continuing"
   elif [[ "$installerName" = "Install macOS Catalina" && "$macOSVersionMajor" -le "10" ]]; then
-    echo "Yosemite or earlier requires at least 19GB of free space, checking"
-    if [[ "$availableDiskSpaceBytes" -ge "19000000000" ]]; then
-      echo "at least 19GB of space is available, continuing"
+    echo "Yosemite or earlier requires at least 19GB of free space + the 10GB needed for the installer, checking"
+    if [[ "$availableDiskSpaceBytes" -ge "29000000000" ]]; then
+      echo "at least 29GB of space is available, continuing"
     else
       echo "not enough free disk space to perform the upgrade, letting the user know and exiting"
       willNotifyDiskSpaceWarning="true"
     fi
   elif [[ "$installerName" = "Install macOS Catalina" && "$macOSVersionMajor" -ge "11" ]]; then
-    echo "El Capitan or greater requires at least 13GB of free space, checking"
-    if [[ "$availableDiskSpaceBytes" -ge "13000000000" ]]; then
-      echo "at least 13GB of space is available, continuing"
+    echo "El Capitan or greater requires at least 13GB of free space + the 10GB needed for the installer, checking"
+    if [[ "$availableDiskSpaceBytes" -ge "23000000000" ]]; then
+      echo "at least 23GB of space is available, continuing"
     else
       echo "not enough free disk space to perform the upgrade, letting the user know and exiting"
       willNotifyDiskSpaceWarning="true"
     fi
   elif [[ "$installerName" = "Install macOS Big Sur" && "$macOSVersionMajor" -ge "12" ]]; then
-    echo "Sierra or greater requires at least 36GB of free space, checking"
-    if [[ "$availableDiskSpaceBytes" -ge "36000000000" ]]; then
-      echo "at least 36GB of space is available, continuing"
+    echo "Sierra or greater requires at least 36GB of free space + the 12GB needed for the installer, checking"
+    if [[ "$availableDiskSpaceBytes" -ge "48000000000" ]]; then
+      echo "at least 48GB of space is available, continuing"
+    else
+      echo "not enough free disk space to perform the upgrade, letting the user know and exiting"
+      willNotifyDiskSpaceWarning="true"
+    fi
+  elif [[ "$installerName" = "Install macOS Big Sur" && "$macOSVersionMajor" -lt "12" ]]; then
+  	echo "El Capitan or earlier requires at least 45GB of free space + the 12GB needed for the installer, checking"
+    if [[ "$availableDiskSpaceBytes" -ge "57000000000" ]]; then
+      echo "at least 57GB of space is available, continuing"
     else
       echo "not enough free disk space to perform the upgrade, letting the user know and exiting"
       willNotifyDiskSpaceWarning="true"
@@ -338,6 +346,8 @@ checkAvailableDiskSpace ()
     -startlaunchd &>/dev/null
     if [[ -d "/System/Library/CoreServices/Applications/Storage Management.app" ]]; then
       /bin/launchctl asuser "$currentUserUID" open -a "/System/Library/CoreServices/Applications/Storage Management.app"
+    else
+    	/bin/launchctl asuser "$currentUserUID" open "https://support.apple.com/en-us/HT206996#manually"
     fi
   fi
 }
