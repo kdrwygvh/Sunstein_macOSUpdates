@@ -108,7 +108,7 @@ softwareUpdateNotification(){
   -title "$notificationTitle" \
   -description "Updates are available which we'd suggest installing today at your earliest opportunity.
 
-You'll be presented with available updates to install after clicking 'Update Now'" \
+  You'll be presented with available updates to install after clicking 'Update Now'" \
   -alignDescription left \
   -icon "$dialogImagePath" \
   -iconSize 120 \
@@ -157,26 +157,27 @@ if [[ "$currentUser" = "root" ]]; then
       softwareupdate --install --all --restart --verbose
     fi
   fi
-fi
-
-for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
-  frontAppASN="$(lsappinfo front)"
-  frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
-  if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
-    echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification"
-    exit 0
+else
+  for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
+    frontAppASN="$(lsappinfo front)"
+    frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
+    if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
+      echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification"
+      exit 0
+    fi
+  done
+  if [[ "$macOSVersionEpoch" -ge "11" ]]; then
+  	if [[ $(getDoNotDisturbStatus) = "true" ]]; then
+    	echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
+    	exit 0
+    fi
   fi
-done
-
-if [[ $(getDoNotDisturbStatus) = "true" ]]; then
-  echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
-  exit 0
+  softwareUpdateNotification
+  if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" ]]; then
+    /bin/launchctl asuser "$currentUserUID" /usr/bin/open "x-apple.systempreferences:com.apple.preferences.softwareupdate"
+  elif [[ "$macOSVersionMajor" -le "13" ]]; then
+    /bin/launchctl asuser "$currentUserUID" /usr/bin/open "macappstore://showUpdatesPage"
+  fi
 fi
 
-softwareUpdateNotification
 
-if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" ]]; then
-  /bin/launchctl asuser "$currentUserUID" /usr/bin/open "x-apple.systempreferences:com.apple.preferences.softwareupdate"
-elif [[ "$macOSVersionMajor" -le "13" ]]; then
-  /bin/launchctl asuser "$currentUserUID" /usr/bin/open "macappstore://showUpdatesPage"
-fi

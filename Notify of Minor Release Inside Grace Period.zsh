@@ -156,7 +156,7 @@ elif [[ "$currentUser" != "root" ]]; then
       exit 0
     fi
   done
-elif [[ $(getDoNotDisturbStatus) = "true" ]]; then
+elif [[ "$macOSVersionEpoch" -ge "11" && $(getDoNotDisturbStatus) = "true" ]]; then
   echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
   exit 0
 else
