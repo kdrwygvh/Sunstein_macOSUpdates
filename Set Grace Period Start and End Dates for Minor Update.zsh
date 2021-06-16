@@ -75,7 +75,7 @@ setSoftwareUpdateReleaseDate ()
     fi
   }
 
-if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)" -eq "0" ]]; then
+if [[ "$(softwareupdate -l | grep -c '*')" -eq "0" ]]; then
   echo "Client seems to be up to date"
   if [[ -f "$softwareUpdatePreferenceFile" ]]; then
     echo "Software Update Release Date Window preferences are stale, removing"

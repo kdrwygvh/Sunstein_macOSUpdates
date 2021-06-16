@@ -132,7 +132,7 @@ if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
   exit 0
 fi
 
-if [[ "$(defaults read $appleSoftwareUpdatePreferenceFile LastUpdatesAvailable)" -eq "0" ]]; then
+if [[ "$(softwareupdate -l | grep -c '*')" -eq "0" ]]; then
   echo "Client is up to date or has not yet identified needed updates, exiting"
   if [[ -f "$softwareUpdatePreferenceFile" ]]; then
     echo "Grace Period window in Place, removing"
