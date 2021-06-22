@@ -114,7 +114,6 @@ logoPath_POSIX="$(/usr/bin/osascript -e 'tell application "System Events" to ret
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
-##########################################################################################
 
 # Do Not Disturb variables and functions
 doNotDisturbApplePlistID='com.apple.ncprefs'
@@ -129,6 +128,7 @@ doNotDisturbAppBundleIDs=(
   "com.apple.FaceTime"
   "com.apple.iWork.Keynote"
   "com.microsoft.Powerpoint"
+  "com.apple.FinalCut"
 )
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})

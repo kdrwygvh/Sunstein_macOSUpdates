@@ -74,6 +74,7 @@ doNotDisturbAppBundleIDs=(
   "com.apple.FaceTime"
   "com.apple.iWork.Keynote"
   "com.microsoft.Powerpoint"
+  "com.apple.FinalCut"
 )
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})

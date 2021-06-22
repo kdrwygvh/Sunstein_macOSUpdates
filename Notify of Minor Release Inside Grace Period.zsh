@@ -75,6 +75,7 @@ doNotDisturbAppBundleIDs=(
   "com.apple.FaceTime"
   "com.apple.iWork.Keynote"
   "com.microsoft.Powerpoint"
+  "com.apple.FinalCut"
 )
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
@@ -171,8 +172,10 @@ if [ "$userUpdateChoice" -eq "2" ]; then
   exit 0
 elif [ "$userUpdateChoice" -eq "0" ]; then
   if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" ]]; then
+    echo "opening Software Update Preference Pane for user review"
     /bin/launchctl asuser "$currentUserUID" /usr/bin/open "x-apple.systempreferences:com.apple.preferences.softwareupdate"
   elif [[ "$macOSVersionMajor" -le "13" ]]; then
+  	echo "opening Mac App Store Update Pane for user review"
     /bin/launchctl asuser "$currentUserUID" /usr/bin/open "macappstore://showUpdatesPage"
   fi
 fi
