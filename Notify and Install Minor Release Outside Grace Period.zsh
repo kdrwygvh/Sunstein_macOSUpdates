@@ -58,6 +58,7 @@ appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate
 doNotDisturbApplePlistID='com.apple.ncprefs'
 doNotDisturbApplePlistKey='dnd_prefs'
 doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
+numberofUpdatesRequringRestart="$(/usr/sbin/softwareupdate -l | /usr/bin/grep -i -c 'restart')"
 
 # macOSVersionMarketingCompatible is the commerical version number of macOS (10.x, 11.x)
 # macOSVersionEpoch is the major version number and is meant to draw a line between Big Sur and all prior versions of macOS
@@ -74,6 +75,7 @@ doNotDisturbAppBundleIDs=(
   "com.apple.FaceTime"
   "com.apple.iWork.Keynote"
   "com.microsoft.Powerpoint"
+  "com.apple.FinalCut"
 )
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
@@ -108,7 +110,7 @@ softwareUpdateNotification(){
   -title "$notificationTitle" \
   -description "Updates are available which we'd suggest installing today at your earliest opportunity.
 
-  You'll be presented with available updates to install after clicking 'Update Now'" \
+You'll be presented with available updates to install after clicking 'Update Now'" \
   -alignDescription left \
   -icon "$dialogImagePath" \
   -iconSize 120 \
@@ -142,19 +144,21 @@ if [[ "$(softwareupdate -l | grep -c '*')" -eq "0" ]]; then
   exit 0
 fi
 
+if [[ "$numberofUpdatesRequringRestart" -eq "0" ]]; then
+  echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
+  softwareupdate --install --all --verbose
+  exit 0
+fi
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, safe to perform all updates and restart now if required"
-  numberofUpdatesRequringRestart="$(/usr/sbin/softwareupdate -l | /usr/bin/grep -i -c 'restart')"
-  if [[ "$numberofUpdatesRequringRestart" -eq "0" ]]; then
-    echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
-    softwareupdate --install --all --verbose
-  elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
+  if [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
     echo "Updates found which require restart. Installing and restarting...but only on Intel based systems"
     if [[ "$(arch)" = "arm64" ]]; then
       echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"
       /usr/local/bin/jamf policy -event "$mdmSoftwareUpdateEvent" -verbose
     else
       softwareupdate --install --all --restart --verbose
+      exit 0
     fi
   fi
 else
@@ -167,15 +171,17 @@ else
     fi
   done
   if [[ "$macOSVersionEpoch" -ge "11" ]]; then
-  	if [[ $(getDoNotDisturbStatus) = "true" ]]; then
-    	echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
-    	exit 0
+    if [[ $(getDoNotDisturbStatus) = "true" ]]; then
+      echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
+      exit 0
     fi
   fi
   softwareUpdateNotification
   if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" ]]; then
+    echo "opening Software Update Preference Pane for user review"
     /bin/launchctl asuser "$currentUserUID" /usr/bin/open "x-apple.systempreferences:com.apple.preferences.softwareupdate"
   elif [[ "$macOSVersionMajor" -le "13" ]]; then
+    echo "opening Mac App Store Update Pane for user review"
     /bin/launchctl asuser "$currentUserUID" /usr/bin/open "macappstore://showUpdatesPage"
   fi
 fi
