@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 # Title         :macOS Download Upgrade Reinstall Erase.sh
 # Description   :Performs an upgrade, reinstall, or erase of macOS based on Jamf variables
 # Author        :John Hutchison
@@ -163,18 +165,19 @@ macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatibl
 
 preUpgradeJamfPolicies ()
 {
-    jamfPolicyEvents=(
-      ""
-    )
-    if [[ "${jamfPolicyEvents[*]}" = "" ]]; then
-      echo "No Jamf policies specified, continuing"
-    else
-      for jamfPolicy in "${jamfPolicyEvents[@]}"; do
-        echo "Running Jamf policy with event name $jamfPolicy prior to macOS Install"
-        /usr/local/bin/jamf policy -event "$jamfPolicy" -verbose
-      done
-    fi
-  }
+	jamfPolicyEvents=(
+		""
+	)
+
+	if [[ "${jamfPolicyEvents[*]}" = "" ]]; then
+		echo "No Jamf policies specified, continuing"
+	else
+		for jamfPolicy in "${jamfPolicyEvents[@]}"; do
+			echo "Running Jamf policy with event name $jamfPolicy prior to macOS Install"
+			/usr/local/bin/jamf policy -event "$jamfPolicy" -verbose
+		done
+	fi
+}
 
 networkLinkEvaluation ()
 {
@@ -488,53 +491,69 @@ startOSInstaller ()
   if [[ "$currentUser" = "root" ]]; then
     echo "Nobody logged in, install cannot continue, bailing"
     exit 0
-  else
-    /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-  -icon "$logoPath" \
-  -title "Preparing macOS Install" \
-  -description "Your macOS installation is being prepared. You can continue working and we'll notify you when it's time to restart..." \
-  -button1 "OK" \
-  -defaultButton 1 \
-  -startlaunchd &>/dev/null &
-    if [[ "$installAction" = "erase" ]] && [[ "$(arch)" = "arm64" ]]; then
-      echo "$userPassword" | "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --agreetolicense --rebootdelay "60" --nointeraction --user "$currentUser" --stdinpass &
-    elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" = "arm64" ]]; then
-      echo "$userPassword" | "$startOSInstall" --agreetolicense --rebootdelay "60" --nointeraction --user "$currentUser" --stdinpass &
-    elif [[ "$installAction" = "erase" ]] && [[ "$(arch)" != "arm64" ]]; then
-      "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --agreetolicense --rebootdelay "60" --nointeraction &
-    elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" != "arm64" ]]; then
-      "$startOSInstall" --agreetolicense --rebootdelay "60" --nointeraction &
-    fi
-    sleep 10
-    while [[ "$(pgrep startosinstall)" != "" ]]; do
-      echo "waiting for startosinstall to finish before bringing up final reboot notification"
-      sleep 1
-    done
-    if [[ "$runHeadless" = "true" ]]; then
-      echo "Running headless, skipping reboot notification and quitting all userland applications"
-    else
-      /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
--icon "$logoPath" \
--title "Restarting Now" \
--description "Your Mac will reboot now to start the update process. Your screen may turn on and off several times during the update. This is normal. Please do not press the power button during the update." \
--button1 "OK" \
--defaultButton 1 \
--startlaunchd &>/dev/null &
-    fi
   fi
+	/bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+	-icon "$logoPath" \
+	-title "Preparing macOS Install" \
+	-description "Your macOS installation is being prepared. You can continue working and we'll notify you when it's time to restart..." \
+	-startlaunchd &>/dev/null &
+		if [[ "$installAction" = "erase" ]] && [[ "$(arch)" = "arm64" ]]; then
+			echo "$userPassword" | "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal $(pgrep jamfHelper) --agreetolicense --rebootdelay "60" --user "$currentUser" --stdinpass &
+		elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" = "arm64" ]]; then
+			echo "$userPassword" | "$startOSInstall" --agreetolicense --pidtosignal $(pgrep jamfHelper) --rebootdelay "60" --user "$currentUser" --stdinpass &
+		elif [[ "$installAction" = "erase" ]] && [[ "$(arch)" != "arm64" ]]; then
+			"$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal $(pgrep jamfHelper) --agreetolicense --rebootdelay "60" &
+		elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" != "arm64" ]]; then
+			"$startOSInstall" --agreetolicense --pidtosignal $(pgrep jamfHelper) --rebootdelay "60" &
+		fi
+		wait $(pgrep jamfHelper)
+		/bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+		-icon "$logoPath" \
+		-title "Restarting Now" \
+		-description "Your Mac will reboot now to start the update process. Your screen may turn on and off several times during the update. This is normal. Please do not press the power button during the update." \
+		-button1 "OK" \
+		-defaultButton 1 \
+		-timeout 60 \
+		-startlaunchd &>/dev/null &
+		wait $!
   }
 
+startOSInstallerHeadless ()
+{
+  if [[ -d /Volumes/InstallESD ]]; then
+    echo "Unmounting InstallESD in preparation for new install"
+    diskutil unmount /Volumes/InstallESD
+  fi
+  if [[ -d /Volumes/"Shared Support" ]]; then
+    echo "Unmounting Shared Support in preparation for new install"
+    diskutil unmount /Volumes/"Shared Support"
+  fi
+  if [[ "$currentUser" = "root" ]]; then
+    echo "Nobody logged in, install cannot continue, bailing"
+    exit 0
+  fi
+	if [[ "$installAction" = "erase" ]] && [[ "$(arch)" = "arm64" ]]; then
+		echo "$userPassword" | "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --agreetolicense --pidtosignal startosinstall --nointeraction --forcequitapps --user "$currentUser" --stdinpass &
+	elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" = "arm64" ]]; then
+		echo "$userPassword" | "$startOSInstall" --agreetolicense --pidtosignal startosinstall --nointeraction --forcequitapps --user "$currentUser" --stdinpass &
+	elif [[ "$installAction" = "erase" ]] && [[ "$(arch)" != "arm64" ]]; then
+		"$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal startosinstall --agreetolicense --forcequitapps --nointeraction &
+	elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" != "arm64" ]]; then
+		"$startOSInstall" --agreetolicense --pidtosignal startosinstall --rebootdelay "60" --nointeraction --forcequitapps &
+	fi
+}
+
 if [[ $(getDoNotDisturbStatus) = "true" ]]; then
-  echo "Do Not Disturb is enabled, assuming runheadless operation"
-  runheadless="true"
+  echo "Do Not Disturb is enabled, bailing out"
+  exit 0
 fi
 
 frontAppASN="$(lsappinfo front)"
 for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
   frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
   if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
-    echo "Do not disturb app $frontAppBundleID is frontmost, assuming runheadless operation"
-    runheadless="true"
+    echo "Do not disturb app $frontAppBundleID is frontmost, bailing out"
+    exit 0
   fi
 done
 
@@ -558,7 +577,7 @@ fi
 if [[ "$installAction" = "erase" ]]; then
   rebootActionTitle="Erase and Install macOS"
   rebootActionDescription="Your Mac will be erased and re-installed. Please do so only after performing a backup of your important files."
-elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "" ]]; then
+elif [[ "$installAction" = "reinstall" || "$installAction" = "" ]]; then
   rebootActionTitle="Re-install macOS"
   rebootActionDescription="Your Mac will have a new copy of macOS installed. All of your files and settings will be preserved. Expected install time is approximately 20-30 minutes..."
 elif [[ "$installAction" = "upgrade" ]]; then
@@ -577,9 +596,9 @@ else
     echo "skipping reboot notification as we are running headless"
     if [[ "$(arch)" = "arm64" ]]; then
       passwordPromptAppleSilicon
-      startOSInstaller
+      startOSInstallerHeadless
     else
-      startOSInstaller
+      startOSInstallerHeadless
     fi
   else
     rebootAction=$(/bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
