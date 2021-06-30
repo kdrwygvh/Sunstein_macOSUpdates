@@ -44,8 +44,12 @@
 
 preferenceDomain=$4 # Required
 macOSSoftwareUpdateGracePeriodinDays=$5 # Required
+macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays=$6 # Optional
+wayOutsideGracePeriodDeadlineinDays="$(($macOSSoftwareUpdateGracePeriodinDays+$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays))" # Optional
+wayOutsideGracePeriodAgeOutinSeconds="$(/bin/date -v -"$wayOutsideGracePeriodDeadlineinDays"d +'%s')"
 dateMacBecameAwareOfUpdates="$(/bin/date "+%Y-%m-%d")"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B %e")"
+dateMacBecameAwareOfUpdatesSeconds="$(/bin/date +%s)"
 gracePeriodWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")"
 gracePeriodWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist"
@@ -69,6 +73,9 @@ setSoftwareUpdateReleaseDate ()
       defaults write "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
       defaults write "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDate "$gracePeriodWindowClosureDate"
       defaults write "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDateNationalRepresentation "$gracePeriodWindowClosureDateNationalRepresentation"
+      defaults write "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdatesSeconds "$dateMacBecameAwareOfUpdatesSeconds"
+      defaults write "$softwareUpdatePreferenceFile" wayOutsideGracePeriodDeadlineinDays "$wayOutsideGracePeriodDeadlineinDays"
+      defaults write "$softwareUpdatePreferenceFile" wayOutsideGracePeriodAgeOutinSeconds "$wayOutsideGracePeriodAgeOutinSeconds"
       echo "New Software Update Flexibility Window Closure Date in Place and datestamped $(defaults read "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDate)"
     else
       echo "grace period window is already in place, continuing..."
