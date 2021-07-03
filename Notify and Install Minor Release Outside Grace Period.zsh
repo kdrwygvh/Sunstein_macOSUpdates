@@ -56,7 +56,6 @@ currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirect
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 jamfNotificationHelper="/Library/Application Support/JAMF/bin/Management Action.app/Contents/MacOS/Management Action"
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
-appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate.plist"
 doNotDisturbApplePlistID='com.apple.ncprefs'
 doNotDisturbApplePlistKey='dnd_prefs'
 doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
@@ -165,13 +164,12 @@ if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
   exit 0
 fi
 
-if [[ "$(softwareupdate -l | grep -c '*')" -eq "0" ]]; then
+if [[ "$(softwareupdate --list --no-scan | grep -c '*')" -eq "0" ]]; then
   echo "Client is up to date or has not yet identified needed updates, exiting"
   if [[ -f "$softwareUpdatePreferenceFile" ]]; then
     echo "Grace Period window in Place, removing"
     rm -fv "$softwareUpdatePreferenceFile"
   fi
-  /usr/local/bin/jamf recon
   exit 0
 fi
 
@@ -234,10 +232,14 @@ else
   fi
   softwareUpdateNotification
   if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" ]]; then
-    echo "Opening Software Update Preference Pane for user review"
+    echo "opening Software Update Preference Pane for user review"
+    /bin/launchctl asuser "$currentUserUID" pkill "System Preferences"
+    sleep 5
     /bin/launchctl asuser "$currentUserUID" /usr/bin/open "x-apple.systempreferences:com.apple.preferences.softwareupdate"
   elif [[ "$macOSVersionMajor" -le "13" ]]; then
     echo "opening Mac App Store Update Pane for user review"
+    /bin/launchctl asuser "$currentUserUID" pkill "App Store"
+    sleep 5
     /bin/launchctl asuser "$currentUserUID" /usr/bin/open "macappstore://showUpdatesPage"
   fi
 fi
