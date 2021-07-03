@@ -41,19 +41,20 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-
 preferenceDomain=$4 # Required
 macOSSoftwareUpdateGracePeriodinDays=$5 # Required
 macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays=$6 # Optional
-wayOutsideGracePeriodDeadlineinDays="$(($macOSSoftwareUpdateGracePeriodinDays+$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays))" # Optional
-wayOutsideGracePeriodAgeOutinSeconds="$(/bin/date -v -"$wayOutsideGracePeriodDeadlineinDays"d +'%s')"
 dateMacBecameAwareOfUpdates="$(/bin/date "+%Y-%m-%d")"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B %e")"
 dateMacBecameAwareOfUpdatesSeconds="$(/bin/date +%s)"
 gracePeriodWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")"
 gracePeriodWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist"
-appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate"
+
+if [[ "$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays" != "" ]]; then
+	wayOutsideGracePeriodDeadlineinDays="$(($macOSSoftwareUpdateGracePeriodinDays+$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays))"
+	wayOutsideGracePeriodAgeOutinSeconds="$(/bin/date -v -"$wayOutsideGracePeriodDeadlineinDays"d +'%s')"
+fi
 
 if [[ $4 == "" ]]; then
   echo "Preference Domain was not set, bailing"
@@ -82,12 +83,11 @@ setSoftwareUpdateReleaseDate ()
     fi
   }
 
-if [[ "$(softwareupdate -l | grep -c '*')" -eq "0" ]]; then
+if [[ "$(softwareupdate --list --no-scan | grep -c '*')" -eq "0" ]]; then
   echo "Client seems to be up to date"
   if [[ -f "$softwareUpdatePreferenceFile" ]]; then
     echo "Software Update Release Date Window preferences are stale, removing"
     rm -fv "$softwareUpdatePreferenceFile"
-    /usr/local/bin/jamf recon
   fi
 else
   setSoftwareUpdateReleaseDate
