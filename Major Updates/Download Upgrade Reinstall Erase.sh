@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 # Title         :macOS Download Upgrade Reinstall Erase.sh
 # Description   :Performs an upgrade, reinstall, or erase of macOS based on Jamf variables
 # Author        :John Hutchison
@@ -179,6 +177,15 @@ preUpgradeJamfPolicies ()
 	fi
 }
 
+resetIgnoredUpdates ()
+{
+	ignoredUpdates=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist InactiveUpdates)
+	if [[ "$ignoredUpdates" =~ "macOS" ]]; then
+		echo "at least one major upgrade is being ignored, resetting now to guarantee successful download from Appple CDN"
+		softwareupdate --reset-ignored
+	fi
+}
+
 networkLinkEvaluation ()
 {
   if [[ "$networkLinkEvaluation" = "false" ]]; then
@@ -274,11 +281,11 @@ checkBatteryStatus ()
 {
   currentPowerDrawStatus=$(pmset -g batt | head -n 1)
   if [[ "$currentPowerDrawStatus" =~ "Now drawing from 'Battery Power'" ]]; then
-    BatteryMaximumCapacity=$(ioreg -r -c "AppleSmartBattery" | grep -w "MaxCapacity" | awk '{print $3}' | sed s/\"//g)
-    BatteryCurrentCapacity=$(ioreg -r -c "AppleSmartBattery" | grep -w "CurrentCapacity" | awk '{print $3}' | sed s/\"//g)
-    BatteryPercentage=$(echo "scale=4; ($BatteryCurrentCapacity / $BatteryMaximumCapacity) * 100" | bc | awk -F '.' '{print $1}')
+    batteryMaximumCapacity=$(ioreg -r -c "AppleSmartBattery" | grep '"MaxCapacity"' | tail -n 1 | awk -F ' = ' '{print $2}')
+    batteryCurrentCapacity=$(ioreg -r -c "AppleSmartBattery" | grep '"CurrentCapacity"' | tail -n 1 | awk -F ' = ' '{print $2}')
+    batteryPercentage=$(echo "scale=4; ($batteryCurrentCapacity / $batteryMaximumCapacity) * 100" | bc | awk -F '.' '{print $1}')
 
-    if [ "$BatteryPercentage" -lt 50 ]; then
+    if [ "$batteryPercentage" -lt 50 ]; then
       echo "Aborting installation as battery level is too low to proceed safely"
       if [[ "$currentUser" = "root" ]]; then
         echo "Nobody logged in, suppressing network link results"
@@ -293,7 +300,7 @@ checkBatteryStatus ()
         exit 1
       fi
     else
-      echo "Battery level currently at $BatteryPercentage, proceeding"
+      echo "Battery level currently at $batteryPercentage, proceeding"
     fi
   fi
 }
@@ -471,7 +478,7 @@ passwordPromptAppleSilicon ()
         -button1 'Stop' \
         -defaultButton 1 \
         -startlaunchd &>/dev/null &
-          exit 1
+        exit 1
         fi
       fi
     done
@@ -564,11 +571,13 @@ fi
 
 if [[ "$runHeadless" = "true" ]]; then
   preUpgradeJamfPolicies
+  resetIgnoredUpdates
   downloadOSInstaller
 else
   checkBatteryStatus
   checkAvailableDiskSpace
   preUpgradeJamfPolicies
+  resetIgnoredUpdates
   downloadOSInstaller
 fi
 

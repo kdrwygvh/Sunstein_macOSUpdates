@@ -52,7 +52,6 @@ majorOSUpgradeBaseVersionEpoch="$(awk -F '.' '{print $1}' <<<"$majorOSUpgradeBas
 majorOSUpgradeBaseVersionMajor="$(awk -F '.' '{print $2}' <<<"$majorOSUpgradeBaseVersion")"
 majorOSUpdateEvent=$7 # Required
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.majorSoftwareUpdatePreferences.plist"
-appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate.plist"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdatesNationalRepresentation)"
 gracePeriodWindowCloseDateNationalRepresentation="$(defaults read "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDateNationalRepresentation)"
@@ -119,7 +118,9 @@ Auto Installation will start on or about
     -button2 "Dismiss" \
     -defaultButton 0 \
     -cancelButton 1 \
-    -timeout 300
+    -timeout 300 \
+    -startlaunchd &>/dev/null &
+		wait $!
   )
 }
 
@@ -146,18 +147,16 @@ if [[ "$macOSVersionEpoch" -ge "11" ]]; then
       echo "Grace period window preference in Place, removing"
       rm -fv "$softwareUpdatePreferenceFile"
     fi
-    /usr/local/bin/jamf recon
     exit 0
   fi
 elif [[ "$macOSVersionEpoch" -eq "10" ]]; then
-  echo "current OS is in the prior epoch, using major OS version number for further evaluation"
+  echo "current OS is in the feline versioning epoch, using major OS version number for further evaluation"
   if [[ "$macOSVersionMajor" -ge "$majorOSUpgradeBaseVersionMajor" ]]; then
     echo "Client is up to date or newer than the version we're expecting, exiting"
     if [[ -f "$softwareUpdatePreferenceFile" ]]; then
       echo "Grace period window preference in Place, removing"
       rm -fv "$softwareUpdatePreferenceFile"
     fi
-    /usr/local/bin/jamf recon
     exit 0
   fi
 fi
@@ -183,10 +182,9 @@ fi
 
 softwareUpdateNotification
 
-if [ "$userUpdateChoice" -eq "2" ]; then
+if [[ "$userUpdateChoice" -eq "2" ]]; then
   echo "User chose to defer to a later date, exiting"
-  defaults write "$softwareUpdatePreferenceFile" UserDeferralDate "$(date "+%Y-%m-%d")"
   exit 0
-elif [ "$userUpdateChoice" -eq "0" ]; then
+elif [[ "$userUpdateChoice" -eq "0" ]]; then
   /usr/local/bin/jamf policy -event "$majorOSUpdateEvent" -verbose
 fi

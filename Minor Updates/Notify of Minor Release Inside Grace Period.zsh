@@ -47,12 +47,13 @@
 
 companyPreferenceDomain=$4 # Required
 customBrandingImagePath=$5 # Optional
+updateAttitude=$6 #Optional passive or aggressive
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
-appleSoftwareUpdatePreferenceFile="/Library/Preferences/com.apple.SoftwareUpdate.plist"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation)"
 gracePeriodWindowCloseDateNationalRepresentation="$(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDateNationalRepresentation)"
 macOSSoftwareUpdateGracePeriodinDays="$(defaults read $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays)"
+numberOfUserDeferrals="$(defaults read $softwareUpdatePreferenceFile numberOfUserDeferrals)"
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
@@ -121,7 +122,9 @@ Auto Installation will start on or about
     -button2 "Dismiss" \
     -defaultButton 0 \
     -cancelButton 1 \
-    -timeout 300
+    -timeout 300 \
+    -startlaunchd &>/dev/null &
+		wait $!
   )
 }
 
@@ -130,13 +133,17 @@ if [[ $4 == "" ]]; then
   exit 2
 fi
 
-if [[ "$(softwareupdate -l | grep -c '*')" -eq 0 ]]; then
+if [[ $6 == "" ]]; then
+  echo "Update attitude not set, assuming passive operation"
+  updateAttitude="passive"
+fi
+
+if [[ "$(softwareupdate --list --no-scan | grep -c '*')" -eq 0 ]]; then
   echo "Client is up to date, exiting"
   if [[ -f $softwareUpdatePreferenceFile ]]; then
     echo "grace period window preference in place, removing"
     rm -fv $softwareUpdatePreferenceFile
   fi
-  /usr/local/bin/jamf recon
   exit 0
 fi
 
@@ -146,8 +153,22 @@ if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
 fi
 
 if [[ "$currentUser" = "root" ]]; then
-  echo "User is not in session, not bothering with presenting the software update notification this time around"
-  exit 0
+  echo "User is not in session, not bothering with presenting the software update notification this time around, but checking update attitude"
+  numberofUpdatesRequringRestart="$(softwareupdate --list --no-scan | /usr/bin/grep -i -c 'restart')"
+  if [[ "$updateAttitude" == "aggressive" && "$numberofUpdatesRequringRestart" -ge "1" ]]; then
+    echo "Aggressive attitude is set and user is not logged in, performing all updates and restarting now"
+    if [[ "$(arch)" = "arm64" ]]; then
+      echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"
+      /usr/local/bin/jamf policy -event "$mdmSoftwareUpdateEvent" -verbose
+    else
+      softwareupdate --install --all --restart --verbose
+      exit 0
+    fi
+  elif [[ "$updateAttitude" == "passive" && "$numberofUpdatesRequringRestart" -ge "1" ]]; then
+  	echo "Passive mode set, exiting"
+  	exit 0
+
+  fi
 elif [[ "$currentUser" != "root" ]]; then
   frontAppASN="$(lsappinfo front)"
   for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
@@ -168,14 +189,18 @@ softwareUpdateNotification
 
 if [ "$userUpdateChoice" -eq "2" ]; then
   echo "User chose to defer to a later date, exiting"
-  defaults write "$softwareUpdatePreferenceFile" UserDeferralDate "$(date "+%Y-%m-%d")"
+  defaults write "$softwareUpdatePreferenceFile" numberOfUserDeferrals -int (($numberOfUserDeferrals++))
   exit 0
 elif [ "$userUpdateChoice" -eq "0" ]; then
   if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" ]]; then
     echo "opening Software Update Preference Pane for user review"
+    /bin/launchctl asuser "$currentUserUID" pkill "System Preferences"
+    sleep 5
     /bin/launchctl asuser "$currentUserUID" /usr/bin/open "x-apple.systempreferences:com.apple.preferences.softwareupdate"
   elif [[ "$macOSVersionMajor" -le "13" ]]; then
-  	echo "opening Mac App Store Update Pane for user review"
+    echo "opening Mac App Store Update Pane for user review"
+    /bin/launchctl asuser "$currentUserUID" pkill "App Store"
+    sleep 5
     /bin/launchctl asuser "$currentUserUID" /usr/bin/open "macappstore://showUpdatesPage"
   fi
 fi
