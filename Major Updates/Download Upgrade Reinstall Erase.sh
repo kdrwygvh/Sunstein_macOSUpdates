@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 # Title         :macOS Download Upgrade Reinstall Erase.sh
 # Description   :Performs an upgrade, reinstall, or erase of macOS based on Jamf variables
 # Author        :John Hutchison
