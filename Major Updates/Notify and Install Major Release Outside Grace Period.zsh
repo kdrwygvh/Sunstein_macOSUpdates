@@ -45,10 +45,13 @@
 # Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with "more than"
 # the number of days you're specifying as the grace period duration
 
-companyPreferenceDomain=$4 # Required
-customBrandingImagePath=$5 # Optional
-useAppleSystemPreferencesforUpgradeOffer=$6 #true/false
-notificationTitle="$7" #Optional
+companyPreferenceDomain=$4 # required
+customBrandingImagePath=$5 # optional
+notificationTitle="$6" # optional
+updateAttitude=$7 # passive/aggressive, defaults to passive
+macOSPassiveUpdateEvent=$8 # required
+macOSAggressiveUpdateEvent=$9 # optional
+offermacOSUpdateviaSystemPreferences="${10}" #true/false
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirectory | awk -F ': ' '{print $2}')"
@@ -58,8 +61,8 @@ softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorOSSoft
 doNotDisturbApplePlistID='com.apple.ncprefs'
 doNotDisturbApplePlistKey='dnd_prefs'
 doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
-numberOfUserDeferrals="$(defaults read $softwareUpdatePreferenceFile numberOfUserDeferrals)"
 dateMacBecameAwareOfUpdatesSeconds="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesSeconds)"
+wayOutsideGracePeriodAgeOutinSeconds="$(defaults read $softwareUpdatePreferenceFile wayOutsideGracePeriodAgeOutinSeconds)"
 
 # macOSVersionMarketingCompatible is the commerical version number of macOS (10.x, 11.x)
 # macOSVersionEpoch is the major version number and is meant to draw a line between Big Sur and all prior versions of macOS
@@ -127,90 +130,74 @@ if [[ $4 == "" ]]; then
   exit 2
 fi
 
+if [[ $7 == "" ]]; then
+  echo "update attitude not set, defaulting to passive"
+  updateAttitude="passive"
+fi
+
+if [[ $8 == "" ]]; then
+  echo "Passive update Jamf event not set, bailing"
+  exit 2
+fi
+
+if [[ $9 == "" ]]; then
+  echo "Aggressive update Jamf event not set, defaulting to passive"
+  updateAttitude="passive"
+fi
+
 if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
   echo "Software Update Preferences not yet in place, bailing for now"
   exit 0
 fi
 
-if [[ "$(softwareupdate --list --no-scan | grep -c '*')" -eq "0" ]]; then
-  echo "Client is up to date or has not yet identified needed updates, exiting"
-  if [[ -f "$softwareUpdatePreferenceFile" ]]; then
-    echo "Grace Period window in Place, removing"
-    rm -fv "$softwareUpdatePreferenceFile"
+for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
+  frontAppASN="$(lsappinfo front)"
+  frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
+  if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
+    echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification"
+    exit 0
   fi
+done
+if [[ "$macOSVersionEpoch" -ge "11" ]]; then
+  if [[ $(getDoNotDisturbStatus) = "true" ]]; then
+    echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
+    exit 0
+  fi
+fi
+if [[ $(ioreg -c IOHIDSystem | awk '/HIDIdleTime/ {print int($NF/1000000000)}') -ge "3600" && "$updateAttitude" == "aggressive" ]]; then
+  echo "User has been idle for at least one hour and aggressive attitude is set, updating and restarting now"
+  /usr/local/bin/jamf policy -event "$macOSAggressiveUpdateEvent" -verbose
+  "$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
+  exit 0
+fi
+if [[ "$dateMacBecameAwareOfUpdatesSeconds" -lt "$wayOutsideGracePeriodAgeOutinSeconds" ]] && [[ "$updateAttitude" == "aggressive" ]]; then
+  echo "Mac is way outside the defined grace period and aggressive attitude is set, updating and restarting now"
+  /usr/local/bin/jamf policy -event "$macOSAggressiveUpdateEvent" -verbose
+  "$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
   exit 0
 fi
 
-if [[ "$numberofUpdatesRequringRestart" -eq "0" ]]; then
-  echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
-  softwareupdate --install --recommended --verbose
+softwareUpdateNotification
+
+if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" && "$offermacOSUpdateviaSystemPreferences" == "true" ]]; then
+  echo "Opening Software Update Preference Pane for user review"
+  /bin/launchctl asuser "$currentUserUID" pkill "System Preferences"
+  sleep 5
+  /bin/launchctl asuser "$currentUserUID" /usr/bin/open "x-apple.systempreferences:com.apple.preferences.softwareupdate"
+  exit 0
+elif [[ "$macOSVersionMajor" -le "13" ]]; then
+  echo "opening Mac App Store Update Pane for user review"
+  /bin/launchctl asuser "$currentUserUID" pkill "App Store"
+  sleep 5
+  /bin/launchctl asuser "$currentUserUID" /usr/bin/open "macappstore://showUpdatesPage"
+fi
+
+if [[ "$offermacOSUpdateviaSystemPreferences" != "true" ]]; then
+	echo "running macOS software update passive event"
+  /usr/local/bin/jamf policy -event "$macOSPassiveUpdateEvent" -verbose
   exit 0
 fi
-if [[ "$currentUser" = "root" ]]; then
-  echo "User is not in session, safe to perform all updates and restart now if required"
-  if [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
-    echo "Updates found which require restart. Installing and restarting...but only on Intel based systems"
-    if [[ "$(arch)" = "arm64" ]]; then
-      echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"
-      /usr/local/bin/jamf policy -event "$mdmSoftwareUpdateEvent" -verbose
-    else
-      softwareupdate --install --all --restart --verbose
-      exit 0
-    fi
-  fi
-else
-  for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
-    frontAppASN="$(lsappinfo front)"
-    frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
-    if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
-      echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification"
-      exit 0
-    fi
-  done
-  if [[ "$macOSVersionEpoch" -ge "11" ]]; then
-    if [[ $(getDoNotDisturbStatus) = "true" ]]; then
-      echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
-      exit 0
-    fi
-  fi
-  if [[ $(ioreg -c IOHIDSystem | awk '/HIDIdleTime/ {print int($NF/1000000000)}') -ge "3600" && "$updateAttitude" == "aggressive" ]]; then
-    echo "User has been idle for at least one hour and aggressive attitude is set, updating and restarting now"
-    aggressiveAttitudeNotification
-    if [[ "$(arch)" = "arm64" ]]; then
-      echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"
-      /usr/local/bin/jamf policy -event "$mdmSoftwareUpdateEvent" -verbose
-      "$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
-    else
-      softwareupdate --install --all --restart --verbose
-      "$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
-      exit 0
-    fi
-  fi
-  if [[ "$dateMacBecameAwareOfUpdatesSeconds" -lt "$wayOutsideGracePeriodAgeOutinSeconds" ]] && [[ "$updateAttitude" == "aggressive" ]]; then
-  	echo "Mac is way outside the defined grace period and aggressive attitude is set, updating and restarting now"
-  	aggressiveAttitudeNotification
-  	if [[ "$(arch)" = "arm64" ]]; then
-      echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"
-      /usr/local/bin/jamf policy -event "$mdmSoftwareUpdateEvent" -verbose
-      "$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
-    else
-      softwareupdate --install --all --restart --verbose
-      "$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
-      exit 0
-    fi
-  fi
-  softwareUpdateNotification
-  if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" ]]; then
-    echo "Opening Software Update Preference Pane for user review"
-    /bin/launchctl asuser "$currentUserUID" pkill "System Preferences"
-    sleep 5
-    /bin/launchctl asuser "$currentUserUID" /usr/bin/open "x-apple.systempreferences:com.apple.preferences.softwareupdate"
-  elif [[ "$macOSVersionMajor" -le "13" ]]; then
-    echo "opening Mac App Store Update Pane for user review"
-    /bin/launchctl asuser "$currentUserUID" pkill "App Store"
-    sleep 5
-    /bin/launchctl asuser "$currentUserUID" /usr/bin/open "macappstore://showUpdatesPage"
-  fi
-fi
+
+
 
 

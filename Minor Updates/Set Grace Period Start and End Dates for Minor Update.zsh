@@ -52,8 +52,8 @@ gracePeriodWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftw
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist"
 
 if [[ "$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays" != "" ]]; then
-	wayOutsideGracePeriodDeadlineinDays="$(($macOSSoftwareUpdateGracePeriodinDays+$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays))"
-	wayOutsideGracePeriodAgeOutinSeconds="$(/bin/date -v -"$wayOutsideGracePeriodDeadlineinDays"d +'%s')"
+  wayOutsideGracePeriodDeadlineinDays="$(($macOSSoftwareUpdateGracePeriodinDays+$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays))"
+  wayOutsideGracePeriodAgeOutinSeconds="$(/bin/date -v -"$wayOutsideGracePeriodDeadlineinDays"d +'%s')"
 fi
 
 if [[ $4 == "" ]]; then
@@ -67,21 +67,21 @@ fi
 
 setSoftwareUpdateReleaseDate ()
 
-  {
-    defaults write "$softwareUpdatePreferenceFile" macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
-    if [[ "$(defaults read "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDate)" = "" ]]; then
-      defaults write "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
-      defaults write "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
-      defaults write "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDate "$gracePeriodWindowClosureDate"
-      defaults write "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDateNationalRepresentation "$gracePeriodWindowClosureDateNationalRepresentation"
-      defaults write "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdatesSeconds "$dateMacBecameAwareOfUpdatesSeconds"
-      defaults write "$softwareUpdatePreferenceFile" wayOutsideGracePeriodDeadlineinDays "$wayOutsideGracePeriodDeadlineinDays"
-      defaults write "$softwareUpdatePreferenceFile" wayOutsideGracePeriodAgeOutinSeconds "$wayOutsideGracePeriodAgeOutinSeconds"
-      echo "New Software Update Flexibility Window Closure Date in Place and datestamped $(defaults read "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDate)"
-    else
-      echo "grace period window is already in place, continuing..."
-    fi
-  }
+{
+  defaults write "$softwareUpdatePreferenceFile" macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
+  if [[ "$(defaults read "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDate)" = "" ]]; then
+    defaults write "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
+    defaults write "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
+    defaults write "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDate "$gracePeriodWindowClosureDate"
+    defaults write "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDateNationalRepresentation "$gracePeriodWindowClosureDateNationalRepresentation"
+    defaults write "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdatesSeconds "$dateMacBecameAwareOfUpdatesSeconds"
+    defaults write "$softwareUpdatePreferenceFile" wayOutsideGracePeriodDeadlineinDays "$wayOutsideGracePeriodDeadlineinDays"
+    defaults write "$softwareUpdatePreferenceFile" wayOutsideGracePeriodAgeOutinSeconds "$wayOutsideGracePeriodAgeOutinSeconds"
+    echo "New Software Update Flexibility Window Closure Date in Place and datestamped $(defaults read "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDate)"
+  else
+    echo "grace period window is already in place, continuing..."
+  fi
+}
 
 if [[ "$(softwareupdate --list --no-scan | grep -c '*')" -eq "0" ]]; then
   echo "Client seems to be up to date"

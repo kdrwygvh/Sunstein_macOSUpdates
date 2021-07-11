@@ -47,11 +47,11 @@
 
 companyPreferenceDomain=$4 # Required
 customBrandingImagePath=$5 # Optional
-majorOSUpgradeBaseVersion=$6 # Required. The version, (i.e. 11.0) to consider n+1
-majorOSUpgradeBaseVersionEpoch="$(awk -F '.' '{print $1}' <<<"$majorOSUpgradeBaseVersion")"
-majorOSUpgradeBaseVersionMajor="$(awk -F '.' '{print $2}' <<<"$majorOSUpgradeBaseVersion")"
-majorOSUpdateEvent=$7 # Required
+majorOSUpdateInsideGracePeriodEvent=$6 # Required
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.majorSoftwareUpdatePreferences.plist"
+macOSTargetVersion=$(defaults read "$softwareUpdatePreferenceFile" macOSTargetVersion)
+macOSTargetVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSTargetVersion")"
+macOSTargetVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSTargetVersion")"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdatesNationalRepresentation)"
 gracePeriodWindowCloseDateNationalRepresentation="$(defaults read "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDateNationalRepresentation)"
@@ -64,6 +64,16 @@ currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirect
 doNotDisturbApplePlistID='com.apple.ncprefs'
 doNotDisturbApplePlistKey='dnd_prefs'
 doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
+
+if [[ $4 == "" ]]; then
+  echo "Preference Domain was not set, bailing"
+  exit 2
+fi
+
+if [[ $6 == "" ]]; then
+  echo "Major Update Jamf event not set, bailing"
+  exit 2
+fi
 
 doNotDisturbAppBundleIDs=(
   "us.zoom.xos"
@@ -124,34 +134,19 @@ Auto Installation will start on or about
   )
 }
 
-if [[ $4 == "" ]]; then
-  echo "Preference Domain was not set, bailing"
-  exit 2
-fi
-
-if [[ $6 == "" ]]; then
-  echo "Major Update version not set, bailing"
-  exit 2
-fi
-
-if [[ $7 == "" ]]; then
-  echo "Major update policy event not set, bailing"
-  exit 2
-fi
-
 if [[ "$macOSVersionEpoch" -ge "11" ]]; then
-  echo "current OS is in the new epoch, using epoch number for further evaluation"
-  if [[ "$macOSVersionEpoch" -eq "$majorOSUpgradeBaseVersionEpoch" ]]; then
+  echo "current OS is in iOS style versioning epoch, using epoch number for further evaluation"
+  if [[ "$macOSVersionEpoch" -eq "$macOSTargetVersionEpoch" ]]; then
     echo "Client is up to date, exiting"
     if [[ -f "$softwareUpdatePreferenceFile" ]]; then
       echo "Grace period window preference in Place, removing"
       rm -fv "$softwareUpdatePreferenceFile"
+      exit 0
     fi
-    exit 0
   fi
 elif [[ "$macOSVersionEpoch" -eq "10" ]]; then
-  echo "current OS is in the feline versioning epoch, using major OS version number for further evaluation"
-  if [[ "$macOSVersionMajor" -ge "$majorOSUpgradeBaseVersionMajor" ]]; then
+  echo "current OS is in the OS X versioning epoch, using major OS version number for further evaluation"
+  if [[ "$macOSVersionMajor" -ge "$macOSTargetVersionMajor" ]]; then
     echo "Client is up to date or newer than the version we're expecting, exiting"
     if [[ -f "$softwareUpdatePreferenceFile" ]]; then
       echo "Grace period window preference in Place, removing"
@@ -186,5 +181,5 @@ if [[ "$userUpdateChoice" -eq "2" ]]; then
   echo "User chose to defer to a later date, exiting"
   exit 0
 elif [[ "$userUpdateChoice" -eq "0" ]]; then
-  /usr/local/bin/jamf policy -event "$majorOSUpdateEvent" -verbose
+  /usr/local/bin/jamf policy -event "$majorOSUpdateInsideGracePeriodEvent" -verbose
 fi

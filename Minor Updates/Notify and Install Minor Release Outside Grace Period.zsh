@@ -59,7 +59,6 @@ softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.Soft
 doNotDisturbApplePlistID='com.apple.ncprefs'
 doNotDisturbApplePlistKey='dnd_prefs'
 doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
-numberofUpdatesRequringRestart="$(/usr/sbin/softwareupdate --list --no-scan | /usr/bin/grep -i -c 'restart')"
 numberOfUserDeferrals="$(defaults read $softwareUpdatePreferenceFile numberOfUserDeferrals)"
 dateMacBecameAwareOfUpdatesSeconds="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesSeconds)"
 wayOutsideGracePeriodAgeOutinSeconds="$(defaults read $softwareUpdatePreferenceFile wayOutsideGracePeriodAgeOutinSeconds)"
@@ -122,7 +121,7 @@ You'll be presented with available updates to install after clicking 'Update Now
   -defaultButton 0 \
   -timeout 300 \
   -startlaunchd &>/dev/null &
-	wait $!
+  wait $!
 }
 
 aggressiveAttitudeNotification(){
@@ -139,7 +138,7 @@ aggressiveAttitudeNotification(){
   -defaultButton 0 \
   -timeout 600 \
   -startlaunchd &>/dev/null &
-	wait $!
+  wait $!
 }
 
 if [[ $4 == "" ]]; then
@@ -158,8 +157,8 @@ if [[ $8 == "" ]]; then
 fi
 
 if [[ $9 == "" ]]; then
-	echo "No way outside grace period deadline set, assuming passive operation"
-	updateAttitude="passive"
+  echo "No way outside grace period deadline set, assuming passive operation"
+  updateAttitude="passive"
 fi
 
 if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
@@ -167,7 +166,10 @@ if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
   exit 0
 fi
 
-if [[ "$(softwareupdate --list --no-scan | grep -c '*')" -eq "0" ]]; then
+numberofAvailableUpdates=$(softwareupdate --list --no-scan | grep -c '*')
+numberofUpdatesRequringRestart=$(/usr/sbin/softwareupdate --list --no-scan | /usr/bin/grep -i -c 'restart')
+
+if [[ "$numberofAvailableUpdates" -eq "0" ]]; then
   echo "Client is up to date or has not yet identified needed updates, exiting"
   if [[ -f "$softwareUpdatePreferenceFile" ]]; then
     echo "Grace Period window in Place, removing"
@@ -222,9 +224,9 @@ else
     fi
   fi
   if [[ "$dateMacBecameAwareOfUpdatesSeconds" -lt "$wayOutsideGracePeriodAgeOutinSeconds" ]] && [[ "$updateAttitude" == "aggressive" ]]; then
-  	echo "Mac is way outside the defined grace period and aggressive attitude is set, updating and restarting now"
-  	aggressiveAttitudeNotification
-  	if [[ "$(arch)" = "arm64" ]]; then
+    echo "Mac is way outside the defined grace period and aggressive attitude is set, updating and restarting now"
+    aggressiveAttitudeNotification
+    if [[ "$(arch)" = "arm64" ]]; then
       echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"
       /usr/local/bin/jamf policy -event "$mdmSoftwareUpdateEvent" -verbose
       "$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"

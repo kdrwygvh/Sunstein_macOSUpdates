@@ -55,16 +55,19 @@ gracePeriodWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftw
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorOSSoftwareUpdatePreferences.plist"
 
 if [[ "$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays" != "" ]]; then
-	wayOutsideGracePeriodDeadlineinDays="$(($macOSSoftwareUpdateGracePeriodinDays+$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays))"
-	wayOutsideGracePeriodAgeOutinSeconds="$(/bin/date -v -"$wayOutsideGracePeriodDeadlineinDays"d +'%s')"
+  wayOutsideGracePeriodDeadlineinDays="$(($macOSSoftwareUpdateGracePeriodinDays+$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays))"
+  wayOutsideGracePeriodAgeOutinSeconds="$(/bin/date -v -"$wayOutsideGracePeriodDeadlineinDays"d +'%s')"
 fi
-
-if [[ $4 == "" ]]; then
-  echo "Preference Domain was not set, bailing"
+if [[ "$preferenceDomain" == "" ]]; then
+  echo "Preference Domain not set as a jamf variable, bailing"
   exit 2
 fi
-if [[ $5 == "" ]]; then
-  echo "Software Update Grace Period was not set, bailing"
+if [[ "$macOSSoftwareUpdateGracePeriodinDays" = "" ]]; then
+  echo "Grace Period not set as a jamf variable, bailing"
+  exit 2
+fi
+if [[ "$macOSTargetVersion" == "" ]]; then
+  echo "macOS target version not set, bailing"
   exit 2
 fi
 
@@ -75,37 +78,30 @@ setSoftwareUpdateReleaseDate ()
   if [[ "$(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)" = "" ]]; then
     defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
     defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
+    defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesSeconds "$dateMacBecameAwareOfUpdatesSeconds"
     defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDate "$gracePeriodWindowClosureDate"
     defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDateNationalRepresentation "$gracePeriodWindowClosureDateNationalRepresentation"
+    defaults write $softwareUpdatePreferenceFile macOSTargetVersion "$macOSTargetVersion"
     defaults write $softwareUpdatePreferenceFile wayOutsideGracePeriodDeadlineinDays "$wayOutsideGracePeriodDeadlineinDays"
     defaults write $softwareUpdatePreferenceFile wayOutsideGracePeriodAgeOutinSeconds "$wayOutsideGracePeriodAgeOutinSeconds"
     echo "New Software Update Grace Period Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)"
   else
-    echo "Software Update Flexibility is already in place, continuing..."
+    echo "Software Update grace period ity is already in place, continuing..."
   fi
 }
-
-if [[ "$preferenceDomain" == "" ]]; then
-  echo "Preference Domain not set as a jamf variable, bailing"
-  exit 2
-fi
-if [[ "$macOSSoftwareUpdateGracePeriodinDays" = "" ]]; then
-  echo "Grace Period not set as a jamf variable, bailing"
-  exit 2
-fi
 
 macOSVersionMarketingCompatible="$(sw_vers -productVersion)"
 macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatible")"
 macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
 
 if [[ "$macOSVersionEpoch" -lt "$macOSTargetVersionEpoch" ]]; then
-	echo "We are in the California versioning epoch and client requires a major update"
+  echo "We are in the iOS style versioning epoch and client requires a major update, setting software update preferences"
 elif [[ "$macOSVersionEpoch" -eq "10" ]] && [[ "$macOSVersionMajor" -lt "$macOSTargetVersionMajor" ]]; then
-	echo "We are in the feline versioning epoch and client requires a major update"
+  echo "We are in the OS X style versioning epoch and client requires a major update, setting software update preferences"
 else
   echo "Client seems to be up to date"
   if [[ -f "$softwareUpdatePreferenceFile" ]]; then
-    echo "Software Update Release Date Window preferences are stale, removing"
+    echo "Software Update grace period preferences are stale, removing"
     rm -fv "$softwareUpdatePreferenceFile"
   fi
   exit 0

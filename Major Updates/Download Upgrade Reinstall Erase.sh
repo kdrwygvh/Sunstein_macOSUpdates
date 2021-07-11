@@ -48,7 +48,8 @@
 
 
 # Notes on Bundle Versions of the macOS Installer App
-# Additional info for Big Sur Installers available at https://mrmacintosh.com/macos-big-sur-full-installer-database-download-directly-from-apple/
+# Additional info for Big Sur Installers available at
+# https://mrmacintosh.com/macos-big-sur-full-installer-database-download-directly-from-apple/
 
 # 14.6.06 -eq 10.14.6
 # 15.6.00 -eq 10.15.6
@@ -60,6 +61,7 @@
 # 16.5.01 -eq 11.3
 # 16.5.02 -eq 11.3.1
 # 16.6.01 -eq 11.4
+# 17.0.11 -eq 12.0 public beta (21A5268h)
 
 # Jamf Variable Label names
 
@@ -77,7 +79,7 @@
 
 # Installer Variables
 installerName="$4" # Required
-macOSPreferredBundleVersion="$5"
+macOSPreferredBundleVersion="$5" # Required
 macOSDownloadVersion="$6" # Required
 macOSInstallAppJamfEvent="$7" # Optional
 installAction="$8" # Required
@@ -163,27 +165,27 @@ macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatibl
 
 preUpgradeJamfPolicies ()
 {
-	jamfPolicyEvents=(
-		""
-	)
+  jamfPolicyEvents=(
+    ""
+  )
 
-	if [[ "${jamfPolicyEvents[*]}" = "" ]]; then
-		echo "No Jamf policies specified, continuing"
-	else
-		for jamfPolicy in "${jamfPolicyEvents[@]}"; do
-			echo "Running Jamf policy with event name $jamfPolicy prior to macOS Install"
-			/usr/local/bin/jamf policy -event "$jamfPolicy" -verbose
-		done
-	fi
+  if [[ "${jamfPolicyEvents[*]}" = "" ]]; then
+    echo "No Jamf policies specified, continuing"
+  else
+    for jamfPolicy in "${jamfPolicyEvents[@]}"; do
+      echo "Running Jamf policy with event name $jamfPolicy prior to macOS Install"
+      /usr/local/bin/jamf policy -event "$jamfPolicy" -verbose
+    done
+  fi
 }
 
 resetIgnoredUpdates ()
 {
-	ignoredUpdates=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist InactiveUpdates)
-	if [[ "$ignoredUpdates" =~ "macOS" ]]; then
-		echo "at least one major upgrade is being ignored, resetting now to guarantee successful download from Appple CDN"
-		softwareupdate --reset-ignored
-	fi
+  ignoredUpdates=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist InactiveUpdates)
+  if [[ "$ignoredUpdates" =~ "macOS" ]]; then
+    echo "at least one major upgrade is being ignored, resetting now to guarantee successful download from Appple CDN"
+    softwareupdate --reset-ignored
+  fi
 }
 
 networkLinkEvaluation ()
@@ -288,7 +290,7 @@ checkBatteryStatus ()
     if [ "$batteryPercentage" -lt 50 ]; then
       echo "Aborting installation as battery level is too low to proceed safely"
       if [[ "$currentUser" = "root" ]]; then
-        echo "Nobody logged in, suppressing network link results"
+        echo "Nobody logged in, suppressing battery results"
       else
         /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
         -icon "$logoPath" \
@@ -307,8 +309,8 @@ checkBatteryStatus ()
 
 checkAvailableDiskSpace ()
 {
-  availableDiskSpaceBytes="$(diskutil info / | grep -E 'Container Free Space|Volume Free Space' | awk '{print $6}' | sed "s/(//")"
-  availableDiskSpaceMeasure="$(diskutil info / | grep -E 'Container Free Space|Volume Free Space' | awk '{print $5}')"
+  availableDiskSpaceBytes=$(diskutil info / | grep -E 'Container Free Space|Volume Free Space' | awk '{print $6}' | sed "s/(//")
+  availableDiskSpaceMeasure=$(diskutil info / | grep -E 'Container Free Space|Volume Free Space' | awk '{print $5}')
   if [[ "$availableDiskSpaceMeasure" = "TB" ]]; then
     echo "at least 1 TB of space is available, continuing"
   elif [[ "$availableDiskSpaceMeasure" = "GB" && "$availableDiskSpaceBytes" -ge "48000000000" ]]; then
@@ -338,7 +340,7 @@ checkAvailableDiskSpace ()
       willNotifyDiskSpaceWarning="true"
     fi
   elif [[ "$installerName" = "Install macOS Big Sur" && "$macOSVersionMajor" -lt "12" ]]; then
-  	echo "El Capitan or earlier requires at least 45GB of free space + the 12GB needed for the installer, checking"
+    echo "El Capitan or earlier requires at least 45GB of free space + the 12GB needed for the installer, checking"
     if [[ "$availableDiskSpaceBytes" -ge "57000000000" ]]; then
       echo "at least 57GB of space is available, continuing"
     else
@@ -353,11 +355,13 @@ checkAvailableDiskSpace ()
     -description "Not enough disk space remains to perform the upgrade. You can review your space from the Apple Menu -> About this Mac -> Storage -> Manage. Try to free up at least 25 GB for Catalina and 30-40 GB for Big Sur" \
     -button1 "Review Storage" \
     -defaultButton 1 \
-    -startlaunchd &>/dev/null
+    -timeout 300 \
+    -startlaunchd &>/dev/null &
+    wait $!
     if [[ -d "/System/Library/CoreServices/Applications/Storage Management.app" ]]; then
       /bin/launchctl asuser "$currentUserUID" open -a "/System/Library/CoreServices/Applications/Storage Management.app"
     else
-    	/bin/launchctl asuser "$currentUserUID" open "https://support.apple.com/en-us/HT206996#manually"
+      /bin/launchctl asuser "$currentUserUID" open "https://support.apple.com/en-us/HT206996#manually"
     fi
   fi
 }
@@ -464,21 +468,21 @@ passwordPromptAppleSilicon ()
     userPassword="$(/bin/launchctl asuser "$currentUserUID" /usr/bin/osascript -e 'display dialog "Please enter your password to proceed with the software update" default answer "" with title "'"${promptTitle//\"/\\\"}"'" giving up after 86400 with text buttons {"OK","Cancel"} default button 1 with hidden answer with icon file "'"${logoPath_POSIX//\"/\\\"}"'"' -e 'return text returned of result')"
     # Check the user's password against the local Open Directory store
     TRY=1
-    while [[ "$(/usr/bin/dscl /Search -authonly "$currentUser" "$userPassword" &> /dev/null; echo $?)" -ne 0 ]]; do
+    while ! /usr/bin/dscl /Search -authonly "$currentUser" "$userPassword"; do
       ((TRY++))
       echo "Prompting $currentUser for their Mac password again attempt $TRY..."
       userPassword="$(/bin/launchctl asuser "$currentUserUID" /usr/bin/osascript -e 'display dialog "Please re-type your password" default answer "" with title "'"${promptTitle//\"/\\\"}"'" giving up after 86400 with text buttons {"OK"} default button 1 with hidden answer with icon file "'"${logoPath_POSIX//\"/\\\"}"'"' -e 'return text returned of result')"
-      if [[ "$(/usr/bin/dscl /Search -authonly "$currentUser" "$userPassword" &> /dev/null; echo $?)" -ne 0 ]]; then
+      if ! /usr/bin/dscl /Search -authonly "$currentUser" "$userPassword"; then
         if (( $TRY >= 2 )); then
           echo "[ERROR] Password prompt unsuccessful after 2 attempts. Displaying \"forgot password\" message..."
           /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-        -icon "$logoPath" \
-        -title "Authentication" \
-        -description "Your password seems to be incorrect. Verify that you are using the correct password for Mac authentication and try again..." \
-        -button1 'Stop' \
-        -defaultButton 1 \
-        -startlaunchd &>/dev/null &
-        exit 1
+					-icon "$logoPath" \
+					-title "Authentication" \
+					-description "Your password seems to be incorrect. Verify that you are using the correct password for Mac authentication and try again..." \
+					-button1 'Stop' \
+					-defaultButton 1 \
+					-startlaunchd &>/dev/null &
+        	exit 1
         fi
       fi
     done
@@ -499,30 +503,30 @@ startOSInstaller ()
     echo "Nobody logged in, install cannot continue, bailing"
     exit 0
   fi
-	/bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-	-icon "$logoPath" \
-	-title "Preparing macOS Install" \
-	-description "Your macOS installation is being prepared. You can continue working and we'll notify you when it's time to restart..." \
-	-startlaunchd &>/dev/null &
-		if [[ "$installAction" = "erase" ]] && [[ "$(arch)" = "arm64" ]]; then
-			echo "$userPassword" | "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal $(pgrep jamfHelper) --agreetolicense --rebootdelay "60" --user "$currentUser" --stdinpass &
-		elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" = "arm64" ]]; then
-			echo "$userPassword" | "$startOSInstall" --agreetolicense --pidtosignal $(pgrep jamfHelper) --rebootdelay "60" --user "$currentUser" --stdinpass &
-		elif [[ "$installAction" = "erase" ]] && [[ "$(arch)" != "arm64" ]]; then
-			"$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal $(pgrep jamfHelper) --agreetolicense --rebootdelay "60" &
-		elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" != "arm64" ]]; then
-			"$startOSInstall" --agreetolicense --pidtosignal $(pgrep jamfHelper) --rebootdelay "60" &
-		fi
-		wait $(pgrep jamfHelper)
-		/bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-		-icon "$logoPath" \
-		-title "Restarting Now" \
-		-description "Your Mac will reboot now to start the update process. Your screen may turn on and off several times during the update. This is normal. Please do not press the power button during the update." \
-		-button1 "OK" \
-		-defaultButton 1 \
-		-timeout 60 \
-		-startlaunchd &>/dev/null &
-		wait $!
+  /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+  -icon "$logoPath" \
+  -title "Preparing macOS Install" \
+  -description "Your macOS installation is being prepared. You can continue working and we'll notify you when it's time to restart..." \
+  -startlaunchd &>/dev/null &
+    if [[ "$installAction" = "erase" ]] && [[ "$(arch)" = "arm64" ]]; then
+      echo "$userPassword" | "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal $(pgrep jamfHelper) --agreetolicense --rebootdelay "60" --user "$currentUser" --stdinpass &
+    elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" = "arm64" ]]; then
+      echo "$userPassword" | "$startOSInstall" --agreetolicense --pidtosignal $(pgrep jamfHelper) --rebootdelay "60" --user "$currentUser" --stdinpass &
+    elif [[ "$installAction" = "erase" ]] && [[ "$(arch)" != "arm64" ]]; then
+      "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal $(pgrep jamfHelper) --agreetolicense --rebootdelay "60" &
+    elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" != "arm64" ]]; then
+      "$startOSInstall" --agreetolicense --pidtosignal $(pgrep jamfHelper) --rebootdelay "60" &
+    fi
+    wait $(pgrep jamfHelper)
+    /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+    -icon "$logoPath" \
+    -title "Restarting Now" \
+    -description "Your Mac will reboot now to start the update process. Your screen may turn on and off several times during the update. This is normal. Please do not press the power button during the update." \
+    -button1 "OK" \
+    -defaultButton 1 \
+    -timeout 60 \
+    -startlaunchd &>/dev/null &
+    wait $!
   }
 
 startOSInstallerHeadless ()
@@ -539,15 +543,15 @@ startOSInstallerHeadless ()
     echo "Nobody logged in, install cannot continue, bailing"
     exit 0
   fi
-	if [[ "$installAction" = "erase" ]] && [[ "$(arch)" = "arm64" ]]; then
-		echo "$userPassword" | "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --agreetolicense --pidtosignal startosinstall --nointeraction --forcequitapps --user "$currentUser" --stdinpass &
-	elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" = "arm64" ]]; then
-		echo "$userPassword" | "$startOSInstall" --agreetolicense --pidtosignal startosinstall --nointeraction --forcequitapps --user "$currentUser" --stdinpass &
-	elif [[ "$installAction" = "erase" ]] && [[ "$(arch)" != "arm64" ]]; then
-		"$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal startosinstall --agreetolicense --forcequitapps --nointeraction &
-	elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" != "arm64" ]]; then
-		"$startOSInstall" --agreetolicense --pidtosignal startosinstall --rebootdelay "60" --nointeraction --forcequitapps &
-	fi
+  if [[ "$installAction" = "erase" ]] && [[ "$(arch)" = "arm64" ]]; then
+    echo "$userPassword" | "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --agreetolicense --pidtosignal startosinstall --nointeraction --forcequitapps --user "$currentUser" --stdinpass &
+  elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" = "arm64" ]]; then
+    echo "$userPassword" | "$startOSInstall" --agreetolicense --pidtosignal startosinstall --nointeraction --forcequitapps --user "$currentUser" --stdinpass &
+  elif [[ "$installAction" = "erase" ]] && [[ "$(arch)" != "arm64" ]]; then
+    "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal startosinstall --agreetolicense --forcequitapps --nointeraction &
+  elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" != "arm64" ]]; then
+    "$startOSInstall" --agreetolicense --pidtosignal startosinstall --rebootdelay "60" --nointeraction --forcequitapps &
+  fi
 }
 
 if [[ $(getDoNotDisturbStatus) = "true" ]]; then
@@ -581,7 +585,8 @@ else
   downloadOSInstaller
 fi
 
-# Check which install action was set by Jamf Policy and change the notification language appropriately
+# Check which install action was set by Jamf Policy and change the notification language
+# appropriately
 
 if [[ "$installAction" = "erase" ]]; then
   rebootActionTitle="Erase and Install macOS"
