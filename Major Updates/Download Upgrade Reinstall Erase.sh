@@ -476,13 +476,13 @@ passwordPromptAppleSilicon ()
         if (( $TRY >= 2 )); then
           echo "[ERROR] Password prompt unsuccessful after 2 attempts. Displaying \"forgot password\" message..."
           /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-					-icon "$logoPath" \
-					-title "Authentication" \
-					-description "Your password seems to be incorrect. Verify that you are using the correct password for Mac authentication and try again..." \
-					-button1 'Stop' \
-					-defaultButton 1 \
-					-startlaunchd &>/dev/null &
-        	exit 1
+          -icon "$logoPath" \
+          -title "Authentication" \
+          -description "Your password seems to be incorrect. Verify that you are using the correct password for Mac authentication and try again..." \
+          -button1 'Stop' \
+          -defaultButton 1 \
+          -startlaunchd &>/dev/null &
+          exit 1
         fi
       fi
     done
