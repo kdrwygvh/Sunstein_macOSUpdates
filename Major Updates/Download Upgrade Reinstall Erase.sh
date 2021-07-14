@@ -46,6 +46,9 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+# WARNING: If you regularly package macOS Installers using Packages, Composer etc... you
+# probably do not want to use this tool on yourself. It will delete any outdated installers
+# it finds in favor of the version specified during script execution. Use responsibly.
 
 # Notes on Bundle Versions of the macOS Installer App
 # Additional info for Big Sur Installers available at
@@ -117,6 +120,16 @@ currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
 
+# Collect the OS version in various formats
+# macOSVersionScriptCompatible is available in Big Sur and on and shows the 10.x version of macOS
+# macOSVersionMarketingCompatible is the commerical version number of macOS (10.x, 11.x)
+# macOSVersionEpoch is the major version number and is meant to draw a line between Big Sur and all prior versions of macOS
+# macOSVersionMajor is the current dot releaes of macOS (15 in 10.15)
+
+macOSVersionMarketingCompatible="$(sw_vers -productVersion)"
+macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatible")"
+macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
+
 # Do Not Disturb variables and functions
 doNotDisturbApplePlistID='com.apple.ncprefs'
 doNotDisturbApplePlistKey='dnd_prefs'
@@ -137,23 +150,13 @@ doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
 getNestedDoNotDisturbPlist(){
   plutil -extract $2 xml1 -o - $1 | \
-    xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
+  xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
 }
 
 getDoNotDisturbStatus(){
   getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
     xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
 }
-
-# Collect the OS version in various formats
-# macOSVersionScriptCompatible is available in Big Sur and on and shows the 10.x version of macOS
-# macOSVersionMarketingCompatible is the commerical version number of macOS (10.x, 11.x)
-# macOSVersionEpoch is the major version number and is meant to draw a line between Big Sur and all prior versions of macOS
-# macOSVersionMajor is the current dot releaes of macOS (15 in 10.15)
-
-macOSVersionMarketingCompatible="$(sw_vers -productVersion)"
-macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatible")"
-macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
 
 # Function declarations
 
@@ -193,7 +196,7 @@ networkLinkEvaluation ()
   if [[ "$networkLinkEvaluation" = "false" ]]; then
     echo "Network link evaluation set to false, skipping"
   elif [[ ! -f /usr/bin/sysdiagnose ]]; then
-    echo "sysdiagnose is not present, skipping network analysis"
+    echo "sysdiagnose is not present, skipping network evaluation"
   else
     /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
     -icon "$logoPath" \
@@ -201,7 +204,7 @@ networkLinkEvaluation ()
     -description "Performing initial network check. If the network is slow or fails certain reachability checks you'll be asked to try another Wi-Fi network..." \
     -startlaunchd &
     sysdiagnose -v -A sysdiagnose.preInstall."$(date "+%m.%d.%y")" -n -F -S -u -Q -b -g -R
-    ## Gather Network State Details
+    # Gather Network State Details
     diagnosticsConfiguration="/var/tmp/sysdiagnose.preInstall.$(date "+%m.%d.%y")/WiFi/diagnostics-configuration.txt"
     wifiSignalState=$(grep "Poor Wi-Fi Signal" "$diagnosticsConfiguration" | grep -c "Yes")
     legacyWifiState=$(grep "Legacy Wi-Fi Rates (802.11b)" "$diagnosticsConfiguration" | grep -c "Yes")
@@ -234,7 +237,7 @@ networkLinkEvaluation ()
       echo "Nobody logged in, suppressing network link results"
     else
       if [[ "$congestedNetworkResult" -eq 1 ]]; then
-        echo "Network link is congested, suggest to the user they try again later"
+        echo "Network link is congested, suggest to the user they close the distance between them and the Wi-fi router"
         /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
         -icon "$logoPath" \
         -title "Network" \
@@ -558,7 +561,7 @@ startOSInstallerHeadless ()
   fi
 }
 
-if [[ $(getDoNotDisturbStatus) = "true" ]]; then
+if [[ $(getDoNotDisturbStatus) = "true" && "$macOSVersionEpoch" -ge "11" ]]; then
   echo "Do Not Disturb is enabled, bailing out"
   exit 0
 fi
