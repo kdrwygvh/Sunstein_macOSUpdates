@@ -527,6 +527,10 @@ startOSInstaller ()
     -timeout 60 \
     -startlaunchd &>/dev/null &
     wait $!
+    if pgrep "Self Service"; then
+    	echo "Self Service is open, killing now to prevent a reboot delay"
+    	pkill "Self Service"
+    fi
   }
 
 startOSInstallerHeadless ()
