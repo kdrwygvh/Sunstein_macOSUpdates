@@ -185,18 +185,17 @@ if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" && "$offerm
   sleep 5
   /bin/launchctl asuser "$currentUserUID" /usr/bin/open "x-apple.systempreferences:com.apple.preferences.softwareupdate"
   exit 0
-elif [[ "$macOSVersionMajor" -le "13" ]]; then
+elif [[ "$macOSVersionMajor" -le "13" && "$offermacOSUpdateviaSystemPreferences" == "true" ]]; then
   echo "opening Mac App Store Update Pane for user review"
   /bin/launchctl asuser "$currentUserUID" pkill "App Store"
   sleep 5
   /bin/launchctl asuser "$currentUserUID" /usr/bin/open "macappstore://showUpdatesPage"
-fi
-
-if [[ "$offermacOSUpdateviaSystemPreferences" != "true" ]]; then
+else
 	echo "running macOS software update passive event"
   /usr/local/bin/jamf policy -event "$macOSPassiveUpdateEvent" -verbose
   exit 0
 fi
+
 
 
 
