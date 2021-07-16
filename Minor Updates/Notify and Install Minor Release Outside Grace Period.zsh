@@ -156,11 +156,6 @@ if [[ $8 == "" ]]; then
   updateAttitude="passive"
 fi
 
-if [[ $9 == "" ]]; then
-  echo "No way outside grace period deadline set, assuming passive operation"
-  updateAttitude="passive"
-fi
-
 if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
   echo "Software Update Preferences not yet in place, bailing for now"
   exit 0

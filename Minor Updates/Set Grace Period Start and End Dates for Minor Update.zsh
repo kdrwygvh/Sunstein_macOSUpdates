@@ -66,7 +66,7 @@ if [[ $5 == "" ]]; then
   exit 2
 fi
 
-if [[ $(defaults read $softwareUpdatePreferenceFile softwareUpdatePreferenceFileVersion -lt "2" ]] && [[ -e "$softwareUpdatePreferenceFile" ]]; then
+if [[ $(defaults read $softwareUpdatePreferenceFile softwareUpdatePreferenceFileVersion) -lt "2" ]] && [[ -e "$softwareUpdatePreferenceFile" ]]; then
 	echo "software update preference version is not correct, resetting"
 	rm -fv "$softwareUpdatePreferenceFile"
 fi
