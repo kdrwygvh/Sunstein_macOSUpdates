@@ -121,7 +121,6 @@ currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
 
 # Collect the OS version in various formats
-# macOSVersionScriptCompatible is available in Big Sur and on and shows the 10.x version of macOS
 # macOSVersionMarketingCompatible is the commerical version number of macOS (10.x, 11.x)
 # macOSVersionEpoch is the major version number and is meant to draw a line between Big Sur and all prior versions of macOS
 # macOSVersionMajor is the current dot releaes of macOS (15 in 10.15)
@@ -561,10 +560,11 @@ startOSInstallerHeadless ()
   fi
 }
 
-if [[ $(getDoNotDisturbStatus) = "true" && "$macOSVersionEpoch" -ge "11" ]]; then
-  echo "Do Not Disturb is enabled, bailing out"
-  exit 0
-fi
+# The below conditional is disabled as system wide dnd status cannot reliably be read
+# if [[ $(getDoNotDisturbStatus) = "true" && "$macOSVersionEpoch" -ge "11" ]]; then
+#   echo "Do Not Disturb is enabled, bailing out"
+#   exit 0
+# fi
 
 frontAppASN="$(lsappinfo front)"
 for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
