@@ -114,7 +114,14 @@ if [[ "$(arch)" = "arm64" ]]; then
   fi
 fi
 
-jamfAuthorizationBase64="$(printf "%s\n" "$jamfAPIAccount:$jamfAPIPassword" | iconv -t ISO-8859-1 | base64 -i -)"
+jamfAuthorizationBase64=$(printf "$jamfAPIAccount:$jamfAPIPassword" | iconv --to-code ISO-8859-1 | base64 --input -)
+jamfComputerID=$(curl -H 'Content-Type: application/xml' -H "Authorization: Basic $jamfAuthorizationBase64" ""$jamfManagementURL"JSSResource/computers/udid/$hardwareUUID/subset/General" | xmllint --xpath "string(//id)" -)
+jamfSupervisionStatus=$(curl -s -f -H 'Content-Type: application/xml' -H "Authorization: Basic $jamfAuthorizationBase64" "$jamfManagementURL""JSSResource/computers/udid/$hardwareUUID/subset/General" | xmllint -xpath "string(//supervised)" -)
+
+if [[ "$jamfSupervisionStatus" = "false" ]]; then
+	echo "software updates via MDM cannot continue, system is not supervised in Jamf Pro. Possible PI PI-008666 or PI-007833"
+	exit 1
+fi
 
 if [[ -z "$logoPath" ]] || [[ ! -f "$logoPath" ]]; then
   /bin/echo "No logo path provided or no logo exists at specified path, using standard application icon"
@@ -125,7 +132,6 @@ if [[ -z "$logoPath" ]] || [[ ! -f "$logoPath" ]]; then
   fi
 fi
 
-jamfComputerID=$(curl -H 'Content-Type: application/xml' -H "Authorization: Basic $jamfAuthorizationBase64" ""$jamfManagementURL"JSSResource/computers/udid/$hardwareUUID/subset/General" | xmllint --xpath "string(//id)" -)
 
 echo "Determining if any updates are available that require a restart"
 numberofUpdatesRequringRestart="$(/usr/sbin/softwareupdate -l | /usr/bin/grep -i -c 'restart')"
@@ -142,10 +148,6 @@ elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
         exit 0
       fi
     done
-    if [[ $(getDoNotDisturbStatus) = "true" ]]; then
-      echo "Do not disturb enabled by user, not displaying notification and bailing"
-      exit 0
-    fi
   fi
   /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
   -icon "$logoPath" \
