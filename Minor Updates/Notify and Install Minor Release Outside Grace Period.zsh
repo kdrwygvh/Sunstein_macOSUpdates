@@ -120,7 +120,7 @@ You'll be presented with available updates to install after clicking 'Update Now
   -button1 "Update Now" \
   -defaultButton 0 \
   -timeout 300 \
-  -startlaunchd &>/dev/null &
+  -startlaunchd &
   wait $!
 }
 
@@ -137,7 +137,7 @@ aggressiveAttitudeNotification(){
   -button1 "Update Now" \
   -defaultButton 0 \
   -timeout 600 \
-  -startlaunchd &>/dev/null &
+  -startlaunchd &
   wait $!
 }
 

@@ -123,8 +123,8 @@ Auto Installation will start on or about
     -defaultButton 0 \
     -cancelButton 1 \
     -timeout 300 \
-    -startlaunchd &>/dev/null &
-		wait $!
+    -startlaunchd &
+    wait $!
   )
 }
 
@@ -189,7 +189,6 @@ softwareUpdateNotification
 
 if [ "$userUpdateChoice" -eq "2" ]; then
   echo "User chose to defer to a later date, exiting"
-  defaults write "$softwareUpdatePreferenceFile" numberOfUserDeferrals -int (($numberOfUserDeferrals++))
   exit 0
 elif [ "$userUpdateChoice" -eq "0" ]; then
   if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" ]]; then
