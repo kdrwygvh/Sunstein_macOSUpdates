@@ -62,6 +62,7 @@ doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preference
 numberOfUserDeferrals="$(defaults read $softwareUpdatePreferenceFile numberOfUserDeferrals)"
 dateMacBecameAwareOfUpdatesSeconds="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesSeconds)"
 wayOutsideGracePeriodAgeOutinSeconds="$(defaults read $softwareUpdatePreferenceFile wayOutsideGracePeriodAgeOutinSeconds)"
+currentDateinSeconds=$(/bin/date +%s)
 
 # macOSVersionMarketingCompatible is the commerical version number of macOS (10.x, 11.x)
 # macOSVersionEpoch is the major version number and is meant to draw a line between Big Sur and all prior versions of macOS
@@ -218,7 +219,7 @@ else
       exit 0
     fi
   fi
-  if [[ "$dateMacBecameAwareOfUpdatesSeconds" -lt "$wayOutsideGracePeriodAgeOutinSeconds" ]] && [[ "$updateAttitude" == "aggressive" ]]; then
+  if [[ "$currentDateinSeconds" -gt "$wayOutsideGracePeriodAgeOutinSeconds" ]] && [[ "$updateAttitude" == "aggressive" ]]; then
     echo "Mac is way outside the defined grace period and aggressive attitude is set, updating and restarting now"
     aggressiveAttitudeNotification
     if [[ "$(arch)" = "arm64" ]]; then

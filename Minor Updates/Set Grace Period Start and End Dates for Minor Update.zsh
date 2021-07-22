@@ -54,7 +54,7 @@ softwareUpdatePreferenceFileVersion="2"
 
 if [[ "$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays" != "" ]]; then
   wayOutsideGracePeriodDeadlineinDays="$(($macOSSoftwareUpdateGracePeriodinDays+$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays))"
-  wayOutsideGracePeriodAgeOutinSeconds="$(/bin/date -v -"$wayOutsideGracePeriodDeadlineinDays"d +'%s')"
+  wayOutsideGracePeriodAgeOutinSeconds="$(/bin/date -v +"$wayOutsideGracePeriodDeadlineinDays"d +'%s')"
 fi
 
 if [[ $4 == "" ]]; then
