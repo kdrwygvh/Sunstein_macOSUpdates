@@ -3,9 +3,9 @@
 # Title         :Notify and Install Minor Release Outside Grace Period.zsh
 # Description   :
 # Author        :John Hutchison
-# Date          :2021-05-18
+# Date          :2021-07-22
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.2.1.1
+# Version       :1.2.1.2
 # Notes         :Updated for Big Sur compatibility. Support for High Sierra Removed
 
 # The Clear BSD License
@@ -84,12 +84,12 @@ doNotDisturbAppBundleIDs=(
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
-getNestedDoNotDisturbPlist(){
+getNestedDoNotDisturbPlist() {
   plutil -extract $2 xml1 -o - $1 | \
     xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
 }
 
-getDoNotDisturbStatus(){
+getDoNotDisturbStatus() {
   getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
     xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
 }
@@ -106,39 +106,39 @@ else
   echo "jamfHelper icon branding not set, continuing anyway as the error is purly cosmetic"
 fi
 
-softwareUpdateNotification(){
+softwareUpdateNotification() {
 
   "$jamfHelper" \
-  -windowType utility \
-  -windowPosition ur \
-  -title "$notificationTitle" \
-  -description "Updates are available which we'd suggest installing today at your earliest convenience.
+    -windowType utility \
+    -windowPosition ur \
+    -title "$notificationTitle" \
+    -description "Updates are available which we'd suggest installing today at your earliest convenience.
 
 You'll be presented with available updates to install after clicking 'Update Now'" \
-  -alignDescription left \
-  -icon "$dialogImagePath" \
-  -iconSize 120 \
-  -button1 "Update Now" \
-  -defaultButton 0 \
-  -timeout 300 \
-  -startlaunchd &
+  	-alignDescription left \
+  	-icon "$dialogImagePath" \
+  	-iconSize 120 \
+  	-button1 "Update Now" \
+  	-defaultButton 0 \
+  	-timeout 300 \
+    -startlaunchd &
   wait $!
 }
 
-aggressiveAttitudeNotification(){
+aggressiveAttitudeNotification() {
 
   "$jamfHelper" \
-  -windowType utility \
-  -windowPosition ur \
-  -title "$notificationTitle" \
-  -description "Updates required now, restarting" \
-  -alignDescription left \
-  -icon "$dialogImagePath" \
-  -iconSize 120 \
-  -button1 "Update Now" \
-  -defaultButton 0 \
-  -timeout 600 \
-  -startlaunchd &
+    -windowType utility \
+    -windowPosition ur \
+    -title "$notificationTitle" \
+    -description "Updates required now, restarting" \
+    -alignDescription left \
+    -icon "$dialogImagePath" \
+    -iconSize 120 \
+    -button1 "Update Now" \
+    -defaultButton 0 \
+    -timeout 600 \
+    -startlaunchd &
   wait $!
 }
 
@@ -232,17 +232,19 @@ else
       exit 0
     fi
   fi
-  softwareUpdateNotification
-  if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" ]]; then
-    echo "Opening Software Update Preference Pane for user review"
-    /bin/launchctl asuser "$currentUserUID" pkill "System Preferences"
-    sleep 5
-    /bin/launchctl asuser "$currentUserUID" /usr/bin/open "x-apple.systempreferences:com.apple.preferences.softwareupdate"
-  elif [[ "$macOSVersionMajor" -le "13" ]]; then
-    echo "opening Mac App Store Update Pane for user review"
-    /bin/launchctl asuser "$currentUserUID" pkill "App Store"
-    sleep 5
-    /bin/launchctl asuser "$currentUserUID" /usr/bin/open "macappstore://showUpdatesPage"
+  if [[ "$updateAttitude" = "passive" ]]; then
+    softwareUpdateNotification
+    if [[ "$macOSVersionEpoch" -ge "11" || "$macOSVersionMajor" -ge "14" ]]; then
+      echo "Opening Software Update Preference Pane for user review"
+      /bin/launchctl asuser "$currentUserUID" pkill "System Preferences"
+      sleep 5
+      /bin/launchctl asuser "$currentUserUID" /usr/bin/open "x-apple.systempreferences:com.apple.preferences.softwareupdate"
+    elif [[ "$macOSVersionMajor" -le "13" ]]; then
+      echo "opening Mac App Store Update Pane for user review"
+      /bin/launchctl asuser "$currentUserUID" pkill "App Store"
+      sleep 5
+      /bin/launchctl asuser "$currentUserUID" /usr/bin/open "macappstore://showUpdatesPage"
+    fi
   fi
 fi
 

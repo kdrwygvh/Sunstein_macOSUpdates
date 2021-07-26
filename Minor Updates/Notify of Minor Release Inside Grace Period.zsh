@@ -3,9 +3,9 @@
 # Title         :Notify of Minor Release Inside Grace Period.zsh
 # Description   :Update notifications via the jamfHelper
 # Author        :John Hutchison
-# Date          :2021-05-18
+# Date          :2021-07-22
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.2.1.1
+# Version       :1.2.1.2
 # Notes         :Updated for compatibility with Big Sur. Support for High Sierra removed
 
 # The Clear BSD License

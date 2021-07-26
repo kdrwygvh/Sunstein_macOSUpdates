@@ -3,10 +3,10 @@
 # Title         :Issue Software Update via MDM.zsh
 # Description   :
 # Author        :John Hutchison
-# Date          :2021-05-25
+# Date          :2021-07-22
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.0.1
-# Notes         :
+# Version       :1.0.2
+# Notes         :Added logic to check for Jamf Pro supervision status
 
 # The Clear BSD License
 #
@@ -48,13 +48,10 @@
 jamfAPIAccount="$4" # Required
 jamfAPIPassword="$5" # Required
 logoPath="$6" # Optional
-notificationTitle="$7" # Recommended
-notificationDescription="$8" # Required
 hardwareUUID="$(system_profiler SPHardwareDataType | grep "Hardware UUID" | awk '{print $3}')"
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
-jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 jamfManagementURL="$(defaults read /Library/Preferences/com.jamfsoftware.jamf jss_url)"
 doNotDisturbApplePlistID='com.apple.ncprefs'
 doNotDisturbApplePlistKey='dnd_prefs'
@@ -72,12 +69,12 @@ doNotDisturbAppBundleIDs=(
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
-getNestedDoNotDisturbPlist(){
+getNestedDoNotDisturbPlist() {
   plutil -extract $2 xml1 -o - $1 | \
     xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
 }
 
-getDoNotDisturbStatus(){
+getDoNotDisturbStatus() {
   getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
     xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
 }
@@ -99,11 +96,6 @@ if [[ "$jamfAPIPassword" = "" ]]; then
   exit 2
 fi
 
-if [[ "$notificationDescription" = "" ]]; then
-  echo "Software update notification description not set, bailing"
-  exit 2
-fi
-
 if [[ "$(arch)" = "arm64" ]]; then
   echo "checking bootstrap token escrow status"
   if [[ "$(profiles status -type bootstraptoken | grep "Bootstrap Token escrowed to server" | awk -F ': ' '{print $3}')" != "YES" ]]; then
@@ -115,12 +107,13 @@ if [[ "$(arch)" = "arm64" ]]; then
 fi
 
 jamfAuthorizationBase64=$(printf "$jamfAPIAccount:$jamfAPIPassword" | iconv --to-code ISO-8859-1 | base64 --input -)
-jamfComputerID=$(curl -H 'Content-Type: application/xml' -H "Authorization: Basic $jamfAuthorizationBase64" ""$jamfManagementURL"JSSResource/computers/udid/$hardwareUUID/subset/General" | xmllint --xpath "string(//id)" -)
-jamfSupervisionStatus=$(curl -s -f -H 'Content-Type: application/xml' -H "Authorization: Basic $jamfAuthorizationBase64" "$jamfManagementURL""JSSResource/computers/udid/$hardwareUUID/subset/General" | xmllint -xpath "string(//supervised)" -)
+jamfComputerGeneralInfoXML=$(curl -H 'Content-Type: application/xml' -H "Authorization: Basic $jamfAuthorizationBase64" ""$jamfManagementURL"JSSResource/computers/udid/$hardwareUUID/subset/General")
+jamfComputerID=$(echo "$jamfComputerGeneralInfoXML" | xmllint --xpath "string(//id)" -)
+jamfSupervisionStatus=$(echo "$jamfComputerGeneralInfoXML" | xmllint -xpath "string(//supervised)" -)
 
 if [[ "$jamfSupervisionStatus" = "false" ]]; then
-	echo "software updates via MDM cannot continue, system is not supervised in Jamf Pro. Possible PI PI-008666 or PI-007833"
-	exit 1
+  echo "software updates via MDM cannot continue, system is not supervised in Jamf Pro. Possible PI PI-008666 or PI-007833"
+  exit 1
 fi
 
 if [[ -z "$logoPath" ]] || [[ ! -f "$logoPath" ]]; then
@@ -149,15 +142,9 @@ elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
       fi
     done
   fi
-  /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-  -icon "$logoPath" \
-  -title "$notificationTitle" \
-  -description "$notificationDescription" \
-  -button1 "OK" \
-  -startlaunchd &
 fi
 
 ## POST Software Update MDM Command. Will only work on ABM enrolled devices or Big Sur Devices that are supervised with a user approved MDM enrollment profile and escrowed bootstrap token
 curl -s -f -X "POST" "$jamfManagementURL""JSSResource/computercommands/command/ScheduleOSUpdate/action/install/id/$jamfComputerID" \
-     -H "Authorization: Basic $jamfAuthorizationBase64" \
-     -H 'Cache-Control: no-cache'
+  -H "Authorization: Basic $jamfAuthorizationBase64" \
+  -H 'Cache-Control: no-cache'

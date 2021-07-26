@@ -3,9 +3,9 @@
 # Title         :Set Grace Period Start and End Dates for Minor Update.zsh
 # Description   :Sets the future date after which user flexibility for OS updates will close
 # Author        :John Hutchison
-# Date          :2021-03-25
+# Date          :2021-07-22
 # Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.2.1.1
+# Version       :1.2.1.2
 # Notes         :Added absolute deadline logic
 
 # The Clear BSD License
@@ -67,16 +67,16 @@ if [[ $5 == "" ]]; then
 fi
 
 if [[ $(defaults read $softwareUpdatePreferenceFile softwareUpdatePreferenceFileVersion) -lt "2" ]] && [[ -e "$softwareUpdatePreferenceFile" ]]; then
-	echo "software update preference version is not correct, resetting"
-	rm -fv "$softwareUpdatePreferenceFile"
+  echo "software update preference version is not correct, resetting"
+  rm -fv "$softwareUpdatePreferenceFile"
 fi
 
-setSoftwareUpdateReleaseDate ()
+setSoftwareUpdateReleaseDate()
 
 {
   defaults write "$softwareUpdatePreferenceFile" macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
   if [[ "$(defaults read "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDate)" = "" ]]; then
-  	defaults write "$softwareUpdatePreferenceFile" softwareUpdatePreferenceFileVersion -int "2"
+    defaults write "$softwareUpdatePreferenceFile" softwareUpdatePreferenceFileVersion -int "2"
     defaults write "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
     defaults write "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
     defaults write "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDate "$gracePeriodWindowClosureDate"
