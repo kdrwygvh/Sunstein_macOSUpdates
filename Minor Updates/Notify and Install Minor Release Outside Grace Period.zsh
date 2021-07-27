@@ -50,6 +50,7 @@ customBrandingImagePath=$5 # Optional
 mdmSoftwareUpdateEvent=$6 # Required
 notificationTitle="$7" #Optional
 updateAttitude=$8 # Optional passive or aggressive, defaults to passive
+aggressiveUpdateIdleTimeinSeconds=$9 # Required if aggressive attitude is set
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirectory | awk -F ': ' '{print $2}')"
@@ -206,8 +207,8 @@ else
       exit 0
     fi
   fi
-  if [[ $(ioreg -c IOHIDSystem | awk '/HIDIdleTime/ {print int($NF/1000000000)}') -ge "3600" && "$updateAttitude" == "aggressive" ]]; then
-    echo "User has been idle for at least one hour and aggressive attitude is set, updating and restarting now"
+  if [[ $(ioreg -c IOHIDSystem | awk '/HIDIdleTime/ {print int($NF/1000000000)}') -ge "$aggressiveUpdateIdleTimeinSeconds" && "$updateAttitude" == "aggressive" ]]; then
+    echo "User has been idle for $aggressiveUpdateIdleTimeinSeconds seconds and aggressive attitude is set, updating and restarting now"
     aggressiveAttitudeNotification
     if [[ "$(arch)" = "arm64" ]]; then
       echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"
