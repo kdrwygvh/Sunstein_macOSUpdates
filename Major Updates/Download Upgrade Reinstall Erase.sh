@@ -65,6 +65,7 @@
 # 16.5.02 -eq 11.3.1
 # 16.6.01 -eq 11.4
 # 16.7.01 -eq 11.5
+# 16.7.02 -eq 11.5.1
 # 17.0.11 -eq 12.0 public beta (21A5268h)
 
 # Jamf Variable Label names
