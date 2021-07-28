@@ -50,7 +50,7 @@ customBrandingImagePath=$5 # Optional
 mdmSoftwareUpdateEvent=$6 # Required
 notificationTitle="$7" #Optional
 updateAttitude=$8 # Optional passive or aggressive, defaults to passive
-aggressiveUpdateIdleTimeinSeconds=$9 # Required if aggressive attitude is set
+aggressiveUpdateIdleTimeinMinutes=$9 # Required if aggressive attitude is set
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirectory | awk -F ': ' '{print $2}')"
@@ -81,6 +81,7 @@ doNotDisturbAppBundleIDs=(
   "com.apple.iWork.Keynote"
   "com.microsoft.Powerpoint"
   "com.apple.FinalCut"
+  "com.apple.TV"
 )
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
@@ -156,6 +157,14 @@ fi
 if [[ $8 == "" ]]; then
   echo "Update attitude not set, assuming passive operation"
   updateAttitude="passive"
+fi
+
+if [[ $9 != "" ]]; then
+	echo "Converting idle time in minutes to seconds"
+	aggressiveUpdateIdleTimeinSeconds=$(($aggressiveUpdateIdleTimeinMinutes*60))
+elif [[ $9 == "" && $updateAttitude = "aggressive" ]]; then
+	echo "aggressive update attitude set but no idle time in minutes is set, bailing"
+	exit 2
 fi
 
 if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
