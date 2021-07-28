@@ -145,6 +145,7 @@ doNotDisturbAppBundleIDs=(
   "com.apple.iWork.Keynote"
   "com.microsoft.Powerpoint"
   "com.apple.FinalCut"
+  "com.apple.TV"
 )
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
