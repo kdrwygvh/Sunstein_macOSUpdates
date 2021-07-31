@@ -60,7 +60,6 @@ softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.Soft
 doNotDisturbApplePlistID='com.apple.ncprefs'
 doNotDisturbApplePlistKey='dnd_prefs'
 doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
-numberOfUserDeferrals="$(defaults read $softwareUpdatePreferenceFile numberOfUserDeferrals)"
 dateMacBecameAwareOfUpdatesSeconds="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesSeconds)"
 wayOutsideGracePeriodAgeOutinSeconds="$(defaults read $softwareUpdatePreferenceFile wayOutsideGracePeriodAgeOutinSeconds)"
 currentDateinSeconds=$(/bin/date +%s)
@@ -116,7 +115,7 @@ softwareUpdateNotification() {
     -title "$notificationTitle" \
     -description "Updates are available which we'd suggest installing today at your earliest convenience.
 
-You'll be presented with available updates to install after clicking 'Update Now'" \
+You'll be presented with available updates to install after clicking 'Review'" \
   	-alignDescription left \
   	-icon "$dialogImagePath" \
   	-iconSize 120 \
