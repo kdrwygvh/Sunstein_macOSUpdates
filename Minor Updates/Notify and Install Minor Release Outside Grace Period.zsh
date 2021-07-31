@@ -85,16 +85,6 @@ doNotDisturbAppBundleIDs=(
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
-getNestedDoNotDisturbPlist() {
-  plutil -extract $2 xml1 -o - $1 | \
-    xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
-}
-
-getDoNotDisturbStatus() {
-  getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
-    xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
-}
-
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
 elif [[ "$customBrandingImagePath" = "" ]]; then
@@ -103,8 +93,6 @@ elif [[ "$customBrandingImagePath" = "" ]]; then
   else
     dialogImagePath="/Applications/App Store.app/Contents/Resources/AppIcon.icns"
   fi
-else
-  echo "jamfHelper icon branding not set, continuing anyway as the error is purly cosmetic"
 fi
 
 softwareUpdateNotification() {
@@ -137,8 +125,7 @@ which will restart your Mac in a few minutes. Please stand by..." \
     -alignDescription left \
     -icon "$dialogImagePath" \
     -iconSize 120 \
-    -defaultButton 0 \
-    -timeout 600 \
+    -defaultButton 0
     -startlaunchd &
 }
 
@@ -208,12 +195,6 @@ else
       exit 0
     fi
   done
-  if [[ "$macOSVersionEpoch" -ge "11" ]]; then
-    if [[ $(getDoNotDisturbStatus) = "true" ]]; then
-      echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
-      exit 0
-    fi
-  fi
   if [[ $(ioreg -c IOHIDSystem | awk '/HIDIdleTime/ {print int($NF/1000000000)}') -ge "$aggressiveUpdateIdleTimeinSeconds" && "$updateAttitude" == "aggressive" ]]; then
     echo "User has been idle for $aggressiveUpdateIdleTimeinSeconds seconds and aggressive attitude is set, updating and restarting now"
     aggressiveAttitudeNotification

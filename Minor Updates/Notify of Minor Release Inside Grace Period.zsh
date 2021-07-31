@@ -82,16 +82,6 @@ doNotDisturbAppBundleIDs=(
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
-getNestedDoNotDisturbPlist(){
-  plutil -extract $2 xml1 -o - $1 | \
-    xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
-}
-
-getDoNotDisturbStatus(){
-  getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
-    xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
-}
-
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
 elif [[ "$customBrandingImagePath" = "" ]]; then
@@ -100,8 +90,6 @@ elif [[ "$customBrandingImagePath" = "" ]]; then
   else
     dialogImagePath="/Applications/App Store.app/Contents/Resources/AppIcon.icns"
   fi
-else
-  echo "jamfHelper icon branding not set, continuing anyway as the error is purly cosmetic"
 fi
 
 softwareUpdateNotification (){
@@ -168,7 +156,6 @@ if [[ "$currentUser" = "root" ]]; then
   elif [[ "$updateAttitude" == "passive" && "$numberofUpdatesRequringRestart" -ge "1" ]]; then
   	echo "Passive mode set, exiting"
   	exit 0
-
   fi
 elif [[ "$currentUser" != "root" ]]; then
   frontAppASN="$(lsappinfo front)"
@@ -179,11 +166,6 @@ elif [[ "$currentUser" != "root" ]]; then
       exit 0
     fi
   done
-elif [[ "$macOSVersionEpoch" -ge "11" && $(getDoNotDisturbStatus) = "true" ]]; then
-  echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
-  exit 0
-else
-  echo "Do not disturb is disabled, safe to proceed with software update notification"
 fi
 
 softwareUpdateNotification

@@ -88,16 +88,6 @@ doNotDisturbAppBundleIDs=(
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
-getNestedDoNotDisturbPlist(){
-  plutil -extract $2 xml1 -o - $1 | \
-    xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
-}
-
-getDoNotDisturbStatus(){
-  getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
-    xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
-}
-
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
 elif [[ "$customBrandingImagePath" = "" ]]; then
@@ -136,8 +126,8 @@ Auto Installation will start on or about
 
 if [[ "$macOSVersionEpoch" -ge "11" ]]; then
   echo "current OS is in iOS style versioning epoch, using epoch number for further evaluation"
-  if [[ "$macOSVersionEpoch" -eq "$macOSTargetVersionEpoch" ]]; then
-    echo "Client is up to date, exiting"
+  if [[ "$macOSVersionEpoch" -ge "$macOSTargetVersionEpoch" ]]; then
+    echo "Client is up to date or newer than the version we're expexting, exiting"
     if [[ -f "$softwareUpdatePreferenceFile" ]]; then
       echo "Grace period window preference in Place, removing"
       rm -fv "$softwareUpdatePreferenceFile"
@@ -168,11 +158,6 @@ elif [[ "$currentUser" != "root" ]]; then
       exit 0
     fi
   done
-elif [[ $(getDoNotDisturbStatus) = "true" ]]; then
-  echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
-  exit 0
-else
-  echo "Do not disturb is disabled, safe to proceed with software update notification"
 fi
 
 softwareUpdateNotification

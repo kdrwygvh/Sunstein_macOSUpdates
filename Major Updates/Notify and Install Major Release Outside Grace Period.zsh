@@ -84,16 +84,6 @@ doNotDisturbAppBundleIDs=(
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
-getNestedDoNotDisturbPlist(){
-  plutil -extract $2 xml1 -o - $1 | \
-    xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
-}
-
-getDoNotDisturbStatus(){
-  getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
-    xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
-}
-
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
 elif [[ "$customBrandingImagePath" = "" ]]; then
@@ -114,7 +104,7 @@ softwareUpdateNotification(){
   -title "$notificationTitle" \
   -description "Updates are available which we'd suggest installing today at your earliest convenience.
 
-You'll be presented with available updates to install after clicking 'Update Now'" \
+The update will begin after clicking 'Update Now'" \
   -alignDescription left \
   -icon "$dialogImagePath" \
   -iconSize 120 \
@@ -158,12 +148,6 @@ for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
     exit 0
   fi
 done
-if [[ "$macOSVersionEpoch" -ge "11" ]]; then
-  if [[ $(getDoNotDisturbStatus) = "true" ]]; then
-    echo "User has enabled Do Not Disturb, not bothering with presenting the software update notification this time around"
-    exit 0
-  fi
-fi
 if [[ $(ioreg -c IOHIDSystem | awk '/HIDIdleTime/ {print int($NF/1000000000)}') -ge "3600" && "$updateAttitude" == "aggressive" ]]; then
   echo "User has been idle for at least one hour and aggressive attitude is set, updating and restarting now"
   /usr/local/bin/jamf policy -event "$macOSAggressiveUpdateEvent" -verbose

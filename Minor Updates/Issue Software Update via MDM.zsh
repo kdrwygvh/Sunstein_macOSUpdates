@@ -69,16 +69,6 @@ doNotDisturbAppBundleIDs=(
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
-getNestedDoNotDisturbPlist() {
-  plutil -extract $2 xml1 -o - $1 | \
-    xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
-}
-
-getDoNotDisturbStatus() {
-  getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
-    xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
-}
-
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not logged into GUI, console, or remote session"
   userLoggedInStatus=0
@@ -106,10 +96,10 @@ if [[ "$(arch)" = "arm64" ]]; then
   fi
 fi
 
-jamfAuthorizationBase64=$(printf "$jamfAPIAccount:$jamfAPIPassword" | iconv --to-code ISO-8859-1 | base64 --input -)
+jamfAuthorizationBase64=$(printf "$jamfAPIAccount:$jamfAPIPassword" | iconv --to-code ISO-8859-1 | /usr/bin/base64 --input -)
 jamfComputerGeneralInfoXML=$(curl -H 'Content-Type: application/xml' -H "Authorization: Basic $jamfAuthorizationBase64" ""$jamfManagementURL"JSSResource/computers/udid/$hardwareUUID/subset/General")
 jamfComputerID=$(echo "$jamfComputerGeneralInfoXML" | xmllint --xpath "string(//id)" -)
-jamfSupervisionStatus=$(echo "$jamfComputerGeneralInfoXML" | xmllint -xpath "string(//supervised)" -)
+jamfSupervisionStatus=$(echo "$jamfComputerGeneralInfoXML" | xmllint --xpath "string(//supervised)" -)
 
 if [[ "$jamfSupervisionStatus" = "false" ]]; then
   echo "software updates via MDM cannot continue, system is not supervised in Jamf Pro. Possible PI PI-008666 or PI-007833"
@@ -125,9 +115,8 @@ if [[ -z "$logoPath" ]] || [[ ! -f "$logoPath" ]]; then
   fi
 fi
 
-
 echo "Determining if any updates are available that require a restart"
-numberofUpdatesRequringRestart="$(/usr/sbin/softwareupdate -l | /usr/bin/grep -i -c 'restart')"
+numberofUpdatesRequringRestart=$(/usr/sbin/softwareupdate --list --no-scan | /usr/bin/grep -i -c 'restart')
 if [[ "$numberofUpdatesRequringRestart" -eq "0" ]]; then
   echo "No updates found which require a restart, suppressing notifications"
 elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then

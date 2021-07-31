@@ -150,16 +150,6 @@ doNotDisturbAppBundleIDs=(
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
-getNestedDoNotDisturbPlist(){
-  plutil -extract $2 xml1 -o - $1 | \
-  xmllint --xpath "string(//data)" - | base64 --decode | plutil -convert xml1 - -o -
-}
-
-getDoNotDisturbStatus(){
-  getNestedDoNotDisturbPlist $doNotdisturbApplePlistLocation $doNotDisturbApplePlistKey | \
-    xmllint --xpath 'boolean(//key[text()="userPref"]/following-sibling::dict/key[text()="enabled"])' -
-}
-
 # Function declarations
 
 # checkBatteryStatus checks the charge on the battery if battery is the power source. If we're at below 25% we throw the user an error
@@ -562,12 +552,6 @@ startOSInstallerHeadless ()
     "$startOSInstall" --agreetolicense --pidtosignal startosinstall --rebootdelay "60" --nointeraction --forcequitapps &
   fi
 }
-
-# The below conditional is disabled as system wide dnd status cannot reliably be read
-# if [[ $(getDoNotDisturbStatus) = "true" && "$macOSVersionEpoch" -ge "11" ]]; then
-#   echo "Do Not Disturb is enabled, bailing out"
-#   exit 0
-# fi
 
 frontAppASN="$(lsappinfo front)"
 for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
