@@ -119,7 +119,7 @@ Auto Installation will start on or about
 "$gracePeriodWindowCloseDateNationalRepresentation"" \
     -icon "$dialogImagePath" \
     -iconSize 100 \
-    -button1 "Update Now" \
+    -button1 "Review" \
     -button2 "Dismiss" \
     -defaultButton 0 \
     -cancelButton 1 \
