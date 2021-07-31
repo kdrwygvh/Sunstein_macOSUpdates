@@ -133,15 +133,14 @@ aggressiveAttitudeNotification() {
     -windowType utility \
     -windowPosition ur \
     -title "$notificationTitle" \
-    -description "Updates required now, restarting" \
+    -description "System updates must be applied now
+which will restart your Mac in a few minutes. Please stand by..." \
     -alignDescription left \
     -icon "$dialogImagePath" \
     -iconSize 120 \
-    -button1 "Update Now" \
     -defaultButton 0 \
     -timeout 600 \
     -startlaunchd &
-  wait $!
 }
 
 if [[ $4 == "" ]]; then
@@ -222,11 +221,18 @@ else
     if [[ "$(arch)" = "arm64" ]]; then
       echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"
       /usr/local/bin/jamf policy -event "$mdmSoftwareUpdateEvent" -verbose
-      "$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
+      "$jamfNotificationHelper" -message "Automatic updates will be applied now and your Mac will restart"
     else
       softwareupdate --install --all --restart --verbose
-      "$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
-      exit 0
+      if [[ "$?" -eq "0" ]]; then
+      	echo "software updates were successfully applied, notifying user and restarting"
+      	"$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
+      	exit 0
+      else
+      	echo "something went wrong with applying the software update, notifying the user"
+      	"$jamfNotificationHelper" -message "Update has been stopped due to a problem. We'll try again later..."
+      	killall "jamfHelper"
+      fi
     fi
   fi
   if [[ "$currentDateinSeconds" -gt "$wayOutsideGracePeriodAgeOutinSeconds" ]] && [[ "$updateAttitude" == "aggressive" ]]; then
@@ -238,8 +244,15 @@ else
       "$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
     else
       softwareupdate --install --all --restart --verbose
-      "$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
-      exit 0
+      if [[ "$?" -eq "0" ]]; then
+      	echo "software updates were successfully applied, notifying user and restarting"
+      	"$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
+      	exit 0
+      else
+      	echo "something went wrong with applying the software update, notifying the user"
+      	"$jamfNotificationHelper" -message "Update has been stopped due to a problem. We'll try again later..."
+      	killall "jamfHelper"
+      fi
     fi
   fi
   if [[ "$updateAttitude" = "passive" ]]; then
