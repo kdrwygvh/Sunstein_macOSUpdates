@@ -158,7 +158,7 @@ doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 # passwordpromptAppleSilicon prompts the user for their credential to authenticate software installs on Aople Silicon
 # startOSInstaller starts the startosinstall process with all arguments collected during the rest of this script execution
 
-preUpgradeJamfPolicies ()
+preUpgradeJamfPolicies()
 {
   jamfPolicyEvents=(
     ""
@@ -174,7 +174,7 @@ preUpgradeJamfPolicies ()
   fi
 }
 
-resetIgnoredUpdates ()
+resetIgnoredUpdates()
 {
   ignoredUpdates=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist InactiveUpdates)
   if [[ "$ignoredUpdates" =~ "macOS" ]]; then
@@ -183,7 +183,7 @@ resetIgnoredUpdates ()
   fi
 }
 
-networkLinkEvaluation ()
+networkLinkEvaluation()
 {
   if [[ "$networkLinkEvaluation" = "false" ]]; then
     echo "Network link evaluation set to false, skipping"
@@ -191,10 +191,10 @@ networkLinkEvaluation ()
     echo "sysdiagnose is not present, skipping network evaluation"
   else
     /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-    -icon "$logoPath" \
-    -title "Checking Network" \
-    -description "Performing initial network check. If the network is slow or fails certain reachability checks you'll be asked to try another Wi-Fi network..." \
-    -startlaunchd &
+      -icon "$logoPath" \
+      -title "Checking Network" \
+      -description "Performing initial network check. If the network is slow or fails certain reachability checks you'll be asked to try another Wi-Fi network..." \
+      -startlaunchd &
     sysdiagnose -v -A sysdiagnose.preInstall."$(date "+%m.%d.%y")" -n -F -S -u -Q -b -g -R
     # Gather Network State Details
     diagnosticsConfiguration="/var/tmp/sysdiagnose.preInstall.$(date "+%m.%d.%y")/WiFi/diagnostics-configuration.txt"
@@ -231,50 +231,50 @@ networkLinkEvaluation ()
       if [[ "$congestedNetworkResult" -eq 1 ]]; then
         echo "Network link is congested, suggest to the user they close the distance between them and the Wi-fi router"
         /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-        -icon "$logoPath" \
-        -title "Network" \
-        -description "Your current Wi-Fi network appears to be congested. Please move as close as possible to your Wi-Fi router for the duration of the upgrade" \
-        -button1 "OK" \
-        -defaultButton 1 \
-        -startlaunchd &>/dev/null
+          -icon "$logoPath" \
+          -title "Network" \
+          -description "Your current Wi-Fi network appears to be congested. Please move as close as possible to your Wi-Fi router for the duration of the upgrade" \
+          -button1 "OK" \
+          -defaultButton 1 \
+          -startlaunchd &>/dev/null
       fi
       if [[ "$wifiSignalState" -eq 1 ]]; then
         echo "Network link is weak, suggest to the user that they move as close as possible to the Wi-Fi source"
         /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-        -icon "$logoPath" \
-        -title "Network" \
-        -description "Your current Wi-Fi signal appears to be weaker than normal. Please move as close as possible to your Wi-Fi router for the duration of the upgrade" \
-        -button1 "OK" \
-        -defaultButton 1 \
-        -startlaunchd &>/dev/null
+          -icon "$logoPath" \
+          -title "Network" \
+          -description "Your current Wi-Fi signal appears to be weaker than normal. Please move as close as possible to your Wi-Fi router for the duration of the upgrade" \
+          -button1 "OK" \
+          -defaultButton 1 \
+          -startlaunchd &>/dev/null
       fi
       if [[ "$iosHotspotState" -eq 1 ]]; then
         echo "Network link is a hotspot, warning the user to try again later"
         /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-        -icon "$logoPath" \
-        -title "Network" \
-        -description "OS Upgrades are not supported on personal hotspot networks. Please try again later on another Wi-Fi network" \
-        -button1 "Stop" \
-        -defaultButton 1 \
-        -startlaunchd &>/dev/null
+          -icon "$logoPath" \
+          -title "Network" \
+          -description "OS Upgrades are not supported on personal hotspot networks. Please try again later on another Wi-Fi network" \
+          -button1 "Stop" \
+          -defaultButton 1 \
+          -startlaunchd &>/dev/null
         exit 2
       fi
       if [[ "$appleCurlResult" -eq 1 ]] || [[ "$appleReachabilityResult" -eq 1 ]] || [[ "$dnsResolutionResult" -eq 1 ]]; then
         echo "Connectivity to Apple's servers and/or DNS resolution tests failed on this network, suggesting to the user they try again later on a different network"
         /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-        -icon "$logoPath" \
-        -title "Network" \
-        -description "This network doesn't appear to support Apple software updates, please try another Wi-Fi network" \
-        -button1 "Stop" \
-        -defaultButton 1 \
-        -startlaunchd &>/dev/null
+          -icon "$logoPath" \
+          -title "Network" \
+          -description "This network doesn't appear to support Apple software updates, please try another Wi-Fi network" \
+          -button1 "Stop" \
+          -defaultButton 1 \
+          -startlaunchd &>/dev/null
         exit 2
       fi
     fi
   fi
 }
 
-checkBatteryStatus ()
+checkBatteryStatus()
 {
   currentPowerDrawStatus=$(pmset -g batt | head -n 1)
   if [[ "$currentPowerDrawStatus" =~ "Now drawing from 'Battery Power'" ]]; then
@@ -288,12 +288,12 @@ checkBatteryStatus ()
         echo "Nobody logged in, suppressing battery results"
       else
         /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-        -icon "$logoPath" \
-        -title "Battery" \
-        -description "Not enough charge remains in your battery to continue. Please plug your Mac into a wall outlet and try again" \
-        -button1 "Stop" \
-        -defaultButton 1 \
-        -startlaunchd &>/dev/null
+          -icon "$logoPath" \
+          -title "Battery" \
+          -description "Not enough charge remains in your battery to continue. Please plug your Mac into a wall outlet and try again" \
+          -button1 "Stop" \
+          -defaultButton 1 \
+          -startlaunchd &>/dev/null
         exit 1
       fi
     else
@@ -302,7 +302,7 @@ checkBatteryStatus ()
   fi
 }
 
-checkAvailableDiskSpace ()
+checkAvailableDiskSpace()
 {
   availableDiskSpaceBytes=$(diskutil info / | grep -E 'Container Free Space|Volume Free Space' | awk '{print $6}' | sed "s/(//")
   availableDiskSpaceMeasure=$(diskutil info / | grep -E 'Container Free Space|Volume Free Space' | awk '{print $5}')
@@ -343,116 +343,121 @@ checkAvailableDiskSpace ()
       willNotifyDiskSpaceWarning="true"
     fi
   fi
-  if [[ "$willNotifyDiskSpaceWarning" = "true" ]]; then
+  if [[ "$willNotifyDiskSpaceWarning" = "true" && "$currentUser" != "root" ]]; then
     /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-    -icon "$logoPath" \
-    -title "Disk Space" \
-    -description "Not enough disk space remains to perform the upgrade. You can review your space from the Apple Menu -> About this Mac -> Storage -> Manage. Try to free up at least 25 GB for Catalina and 30-40 GB for Big Sur" \
-    -button1 "Review Storage" \
-    -defaultButton 1 \
-    -timeout 300 \
-    -startlaunchd &>/dev/null &
+      -icon "$logoPath" \
+      -title "Disk Space" \
+      -description "Not enough disk space remains to perform the upgrade. You can review your space from the Apple Menu -> About this Mac -> Storage -> Manage. Try to free up at least 25 GB for Catalina and 30-40 GB for Big Sur" \
+      -button1 "Review Storage" \
+      -defaultButton 1 \
+      -timeout 300 \
+      -startlaunchd &>/dev/null &
     wait $!
     if [[ -d "/System/Library/CoreServices/Applications/Storage Management.app" ]]; then
       /bin/launchctl asuser "$currentUserUID" open -a "/System/Library/CoreServices/Applications/Storage Management.app"
+      exit 0
     else
       /bin/launchctl asuser "$currentUserUID" open "https://support.apple.com/en-us/HT206996#manually"
+      exit 0
     fi
+  elif [[ "$willNotifyDiskSpaceWarning" = "true" && "$currentUser" = "root" ]]; then
+    echo "nobody logged in, skipping notifications, but not enough disk space remains to do the update"
+    exit 0
   fi
 }
 
-downloadOSInstaller ()
+downloadOSInstaller()
 {
-    installerCount="$(mdfind -name "$installerName" | grep -v '\.bom\|\.plist' | wc -l | sed "s/^[ \t]*//")"
-    if [[ "$installerCount" -eq "0" ]]; then
-      echo "No installers present, downloading a fresh copy"
-      installerPath="/Applications/$installerName.app"
-      startOSInstall="$installerPath"/Contents/Resources/startosinstall
-      willDownload="true"
-    elif [[ "$installerCount" -ge "1" ]]; then
-      installerPaths="$(mdfind -name "$installerName" -0 | xargs -I {} -0 echo {} | grep -v '\.bom\|\.plist')"
-      echo "Found installers at "$installerPaths", checking version"
-      IFS=$'\n'
-      for installer in $installerPaths; do
-        macOSInstallerCurrentBundleVersion=$(/usr/libexec/PlistBuddy -c "Print:CFBundleShortVersionString" "$installer"/Contents/Info.plist)
-        if [[ "$macOSInstallerCurrentBundleVersion" != "$macOSPreferredBundleVersion" ]]; then
-          echo "Version on disk does not match, removing"
-          rm -rdf "$installer"
-          installerPath="/Applications/$installerName.app"
-          startOSInstall="$installerPath"/Contents/Resources/startosinstall
-          willDownload="true"
-        else
-          echo "Version of installer at $installer matches the preferred version"
-          installerPath="$installer"
-          startOSInstall="$installerPath"/Contents/Resources/startosinstall
-          willDownload="false"
-          networkLinkEvaluation="false"
-        fi
-      done
-    fi
-    unset IFS
-    if [[ "$macOSVersionMajor" -ge "15" ]] || [[ "$macOSVersionEpoch" -ge "11" ]] && [[ "$willDownload" = "true" ]]; then
-      echo "Installer will be requested from Apple CDN, checking if network link evaluations are allowed"
-      networkLinkEvaluation
-      echo "macOS version eligible for Install macOS App via softwareupdate, attempting download now..."
-      if [[ "$currentUser" = "root" || "$runHeadless" = "true" ]]; then
-        echo "Suppressing download notification"
+  installerCount="$(mdfind -name "$installerName" | grep -v '\.bom\|\.plist' | wc -l | sed "s/^[ \t]*//")"
+  if [[ "$installerCount" -eq "0" ]]; then
+    echo "No installers present, downloading a fresh copy"
+    installerPath="/Applications/$installerName.app"
+    startOSInstall="$installerPath"/Contents/Resources/startosinstall
+    willDownload="true"
+  elif [[ "$installerCount" -ge "1" ]]; then
+    installerPaths="$(mdfind -name "$installerName" -0 | xargs -I {} -0 echo {} | grep -v '\.bom\|\.plist')"
+    echo "Found installers at "$installerPaths", checking version"
+    IFS=$'\n'
+    for installer in $installerPaths; do
+      macOSInstallerCurrentBundleVersion=$(/usr/libexec/PlistBuddy -c "Print:CFBundleShortVersionString" "$installer"/Contents/Info.plist)
+      if [[ "$macOSInstallerCurrentBundleVersion" != "$macOSPreferredBundleVersion" ]]; then
+        echo "Version on disk does not match, removing"
+        rm -rdf "$installer"
+        installerPath="/Applications/$installerName.app"
+        startOSInstall="$installerPath"/Contents/Resources/startosinstall
+        willDownload="true"
       else
-        /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+        echo "Version of installer at $installer matches the preferred version"
+        installerPath="$installer"
+        startOSInstall="$installerPath"/Contents/Resources/startosinstall
+        willDownload="false"
+        networkLinkEvaluation="false"
+      fi
+    done
+  fi
+  unset IFS
+  if [[ "$macOSVersionMajor" -ge "15" ]] || [[ "$macOSVersionEpoch" -ge "11" ]] && [[ "$willDownload" = "true" ]]; then
+    echo "Installer will be requested from Apple CDN, checking if network link evaluations are allowed"
+    networkLinkEvaluation
+    echo "macOS version eligible for Install macOS App via softwareupdate, attempting download now..."
+    if [[ "$currentUser" = "root" || "$runHeadless" = "true" ]]; then
+      echo "Suppressing download notification"
+    else
+      /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
         -icon "$logoPath" \
         -title "Downloading macOS" \
         -description "Downloading a new copy of macOS. This can take some time. You can close this window and we'll let you know when it's ready" \
         -button1 "OK" \
         -startlaunchd &
+    fi
+    if softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion"; then
+      echo "Download from Apple CDN was successful"
+    else
+      isMajorOSUpdateDeferred=$(system_profiler SPConfigurationProfileDataType | grep -c enforcedSoftwareUpdateMajorOSDeferredInstallDelay)
+      if [[ "$isMajorOSUpdateDeferred" -ge "1" ]]; then
+        echo "Major OS Update Deferral is in effect, are you sure you're requesting an installer outside your deferral window?"
       fi
-      if softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion"; then
-        echo "Download from Apple CDN was successful"
-      else
-        isMajorOSUpdateDeferred=$(system_profiler SPConfigurationProfileDataType | grep -c enforcedSoftwareUpdateMajorOSDeferredInstallDelay)
-        if [[ "$isMajorOSUpdateDeferred" -ge "1" ]]; then
-          echo "Major OS Update Deferral is in effect, are you sure you're requesting an installer outside your deferral window?"
-        fi
-        echo "Download from Apple CDN was not successfull, falling back to Jamf download if available"
-        if [[ "$macOSInstallAppJamfEvent" != "" ]]; then
-          if ! /usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent"; then
-            echo "Installer could not be downloaded from Jamf, bailing now"
-            exit 1
-          fi
-        else
-          echo "Download from Apple CDN and Jamf repositories were not successfull, bailing"
+      echo "Download from Apple CDN was not successfull, falling back to Jamf download if available"
+      if [[ "$macOSInstallAppJamfEvent" != "" ]]; then
+        if ! /usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent"; then
+          echo "Installer could not be downloaded from Jamf, bailing now"
           exit 1
         fi
+      else
+        echo "Download from Apple CDN and Jamf repositories were not successfull, bailing"
+        exit 1
       fi
     fi
-    if [[ "$macOSVersionMajor" -lt "15" ]] && [[ "$macOSVersionEpoch" -lt "11" ]] && [[ "$willDownload" = "true" ]]; then
-      echo "Installer will be requested from Jamf CDN, checking if Jamf event variable is populated"
-      if [[ "$macOSInstallAppJamfEvent" = "" ]]; then
-        echo "Jamf Event is not defined in policy, bailing"
-        exit 2
-      fi
-      echo "Checking if network link evaluations are allowed"
-      networkLinkEvaluation
-      echo "macOS version must be downloaded via Jamf Policy, attempting download now..."
-      if [[ "$currentUser" = "root" ]]; then
-        echo "Nobody logged in, suppressing download notification"
-      else
-        /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+  fi
+  if [[ "$macOSVersionMajor" -lt "15" ]] && [[ "$macOSVersionEpoch" -lt "11" ]] && [[ "$willDownload" = "true" ]]; then
+    echo "Installer will be requested from Jamf CDN, checking if Jamf event variable is populated"
+    if [[ "$macOSInstallAppJamfEvent" = "" ]]; then
+      echo "Jamf Event is not defined in policy, bailing"
+      exit 2
+    fi
+    echo "Checking if network link evaluations are allowed"
+    networkLinkEvaluation
+    echo "macOS version must be downloaded via Jamf Policy, attempting download now..."
+    if [[ "$currentUser" = "root" ]]; then
+      echo "Nobody logged in, suppressing download notification"
+    else
+      /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
         -icon "/System/Library/PreferencePanes/SoftwareUpdate.prefPane/Contents/Resources/SoftwareUpdate.icns" \
         -title "Downloading macOS" \
         -description "Downloading a new copy of macOS. This can take some time. You can close this window and we'll let you know when it's ready" \
         -button1 "OK" \
         -startlaunchd &>/dev/null &
-        if /usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent"; then
-            echo "Installer successfully downloadef from Jamf repository"
-        else
-            echo "Installer could not be downloaded from Jamf, bailing now"
-            exit 1
-        fi
+      if /usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent"; then
+        echo "Installer successfully downloadef from Jamf repository"
+      else
+        echo "Installer could not be downloaded from Jamf, bailing now"
+        exit 1
       fi
     fi
-  }
+  fi
+}
 
-passwordPromptAppleSilicon ()
+passwordPromptAppleSilicon()
 {
   if [[ "$currentUser" = "root" ]]; then
     echo "macOS on Apple Silicon cannot be upgraded without an active login, bailing"
@@ -471,12 +476,12 @@ passwordPromptAppleSilicon ()
         if (( $TRY >= 2 )); then
           echo "[ERROR] Password prompt unsuccessful after 2 attempts. Displaying \"forgot password\" message..."
           /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-          -icon "$logoPath" \
-          -title "Authentication" \
-          -description "Your password seems to be incorrect. Verify that you are using the correct password for Mac authentication and try again..." \
-          -button1 'Stop' \
-          -defaultButton 1 \
-          -startlaunchd &>/dev/null &
+            -icon "$logoPath" \
+            -title "Authentication" \
+            -description "Your password seems to be incorrect. Verify that you are using the correct password for Mac authentication and try again..." \
+            -button1 'Stop' \
+            -defaultButton 1 \
+            -startlaunchd &>/dev/null &
           exit 1
         fi
       fi
@@ -484,7 +489,7 @@ passwordPromptAppleSilicon ()
   fi
 }
 
-startOSInstaller ()
+startOSInstaller()
 {
   if [[ -d /Volumes/InstallESD ]]; then
     echo "Unmounting InstallESD in preparation for new install"
@@ -494,26 +499,22 @@ startOSInstaller ()
     echo "Unmounting Shared Support in preparation for new install"
     diskutil unmount /Volumes/"Shared Support"
   fi
-  if [[ "$currentUser" = "root" ]]; then
-    echo "Nobody logged in, install cannot continue, bailing"
-    exit 0
-  fi
   /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-  -icon "$logoPath" \
-  -title "Preparing macOS Install" \
-  -description "Your macOS installation is being prepared. You can continue working and we'll notify you when it's time to restart..." \
-  -startlaunchd &>/dev/null &
-    if [[ "$installAction" = "erase" ]] && [[ "$(arch)" = "arm64" ]]; then
-      echo "$userPassword" | "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal $(pgrep jamfHelper) --agreetolicense --rebootdelay "60" --user "$currentUser" --stdinpass &
-    elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" = "arm64" ]]; then
-      echo "$userPassword" | "$startOSInstall" --agreetolicense --pidtosignal $(pgrep jamfHelper) --rebootdelay "60" --user "$currentUser" --stdinpass &
-    elif [[ "$installAction" = "erase" ]] && [[ "$(arch)" != "arm64" ]]; then
-      "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal $(pgrep jamfHelper) --agreetolicense --rebootdelay "60" &
-    elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" != "arm64" ]]; then
-      "$startOSInstall" --agreetolicense --pidtosignal $(pgrep jamfHelper) --rebootdelay "60" &
-    fi
-    wait $(pgrep jamfHelper)
-    /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+    -icon "$logoPath" \
+    -title "Preparing macOS Install" \
+    -description "Your macOS installation is being prepared. You can continue working and we'll notify you when it's time to restart..." \
+    -startlaunchd &>/dev/null &
+  if [[ "$installAction" = "erase" ]] && [[ "$(arch)" = "arm64" ]]; then
+    echo "$userPassword" | "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal $(pgrep jamfHelper) --agreetolicense --rebootdelay "60" --user "$currentUser" --stdinpass &
+  elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" = "arm64" ]]; then
+    echo "$userPassword" | "$startOSInstall" --agreetolicense --pidtosignal $(pgrep jamfHelper) --rebootdelay "60" --user "$currentUser" --stdinpass &
+  elif [[ "$installAction" = "erase" ]] && [[ "$(arch)" != "arm64" ]]; then
+    "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --pidtosignal $(pgrep jamfHelper) --agreetolicense --rebootdelay "60" &
+  elif [[ "$installAction" = "reinstall" ]] || [[ "$installAction" = "upgrade" ]] && [[ "$(arch)" != "arm64" ]]; then
+    "$startOSInstall" --agreetolicense --pidtosignal $(pgrep jamfHelper) --rebootdelay "60" &
+  fi
+  wait $(pgrep jamfHelper)
+  /bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
     -icon "$logoPath" \
     -title "Restarting Now" \
     -description "Your Mac will reboot now to start the update process. Your screen may turn on and off several times during the update. This is normal. Please do not press the power button during the update." \
@@ -521,14 +522,14 @@ startOSInstaller ()
     -defaultButton 1 \
     -timeout 60 \
     -startlaunchd &>/dev/null &
-    wait $!
-    if pgrep "Self Service"; then
-    	echo "Self Service is open, killing now to prevent a reboot delay"
-    	pkill "Self Service"
-    fi
-  }
+  wait $!
+  if pgrep "Self Service"; then
+    echo "Self Service is open, killing now to prevent a reboot delay"
+    pkill "Self Service"
+  fi
+}
 
-startOSInstallerHeadless ()
+startOSInstallerHeadless()
 {
   if [[ -d /Volumes/InstallESD ]]; then
     echo "Unmounting InstallESD in preparation for new install"
@@ -537,10 +538,6 @@ startOSInstallerHeadless ()
   if [[ -d /Volumes/"Shared Support" ]]; then
     echo "Unmounting Shared Support in preparation for new install"
     diskutil unmount /Volumes/"Shared Support"
-  fi
-  if [[ "$currentUser" = "root" ]]; then
-    echo "Nobody logged in, install cannot continue, bailing"
-    exit 0
   fi
   if [[ "$installAction" = "erase" ]] && [[ "$(arch)" = "arm64" ]]; then
     echo "$userPassword" | "$startOSInstall" --eraseinstall --newvolumename 'Macintosh HD' --agreetolicense --pidtosignal startosinstall --nointeraction --forcequitapps --user "$currentUser" --stdinpass &
@@ -567,17 +564,11 @@ if [[ "$currentUser" = "root" ]]; then
   runHeadless="true"
 fi
 
-if [[ "$runHeadless" = "true" ]]; then
-  preUpgradeJamfPolicies
-  resetIgnoredUpdates
-  downloadOSInstaller
-else
-  checkBatteryStatus
-  checkAvailableDiskSpace
-  preUpgradeJamfPolicies
-  resetIgnoredUpdates
-  downloadOSInstaller
-fi
+checkBatteryStatus
+checkAvailableDiskSpace
+preUpgradeJamfPolicies
+resetIgnoredUpdates
+downloadOSInstaller
 
 # Check which install action was set by Jamf Policy and change the notification language
 # appropriately
@@ -596,39 +587,34 @@ elif [[ "$installAction" = "downloadonly" ]]; then
   exit 0
 fi
 
-if [[ "$currentUser" = "root" ]]; then
-  echo "Nobody logged in, install cannot continue"
-  exit 0
+if [[ "$runHeadless" = "true" ]]; then
+  echo "skipping reboot notification as we are running headless"
+  if [[ "$(arch)" = "arm64" ]]; then
+    passwordPromptAppleSilicon
+    startOSInstallerHeadless
+  else
+    startOSInstallerHeadless
+  fi
 else
-  if [[ "$runHeadless" = "true" ]]; then
-    echo "skipping reboot notification as we are running headless"
+  rebootAction=$(/bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
+      -icon "$logoPath" \
+      -title "$rebootActionTitle" \
+      -description "$rebootActionDescription" \
+      -button1 "Start" \
+      -button2 "Cancel" \
+      -defaultButton 1 \
+      -timeout 300 \
+    -startlaunchd )
+  if [[ "$rebootAction" -eq 2 ]]; then
+    echo "user chose to cancel, bailing now"
+    exit 0
+  elif [[ "$rebootAction" -eq 0 ]]; then
+    echo "user chose to continue with installation, checking cpu architecture"
     if [[ "$(arch)" = "arm64" ]]; then
       passwordPromptAppleSilicon
-      startOSInstallerHeadless
+      startOSInstaller
     else
-      startOSInstallerHeadless
-    fi
-  else
-    rebootAction=$(/bin/launchctl asuser "$currentUserUID" "$jamfHelper" -windowType "utility" \
-    -icon "$logoPath" \
-    -title "$rebootActionTitle" \
-    -description "$rebootActionDescription" \
-    -button1 "Start" \
-    -button2 "Cancel" \
-    -defaultButton 1 \
-    -timeout 300 \
-    -startlaunchd )
-    if [[ "$rebootAction" -eq 2 ]]; then
-      echo "user chose to cancel, bailing now"
-      exit 0
-    elif [[ "$rebootAction" -eq 0 ]]; then
-      echo "user chose to continue with installation, checking cpu architecture"
-      if [[ "$(arch)" = "arm64" ]]; then
-        passwordPromptAppleSilicon
-        startOSInstaller
-      else
-        startOSInstaller
-      fi
+      startOSInstaller
     fi
   fi
 fi
