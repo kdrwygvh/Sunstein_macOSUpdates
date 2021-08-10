@@ -58,9 +58,6 @@ currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirect
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 jamfNotificationHelper="/Library/Application Support/JAMF/bin/Management Action.app/Contents/MacOS/Management Action"
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorOSSoftwareUpdatePreferences.plist"
-doNotDisturbApplePlistID='com.apple.ncprefs'
-doNotDisturbApplePlistKey='dnd_prefs'
-doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
 dateMacBecameAwareOfUpdatesSeconds="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesSeconds)"
 wayOutsideGracePeriodAgeOutinSeconds="$(defaults read $softwareUpdatePreferenceFile wayOutsideGracePeriodAgeOutinSeconds)"
 

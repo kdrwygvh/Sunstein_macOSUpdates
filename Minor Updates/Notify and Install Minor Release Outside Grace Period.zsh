@@ -57,9 +57,6 @@ currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirect
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 jamfNotificationHelper="/Library/Application Support/JAMF/bin/Management Action.app/Contents/MacOS/Management Action"
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
-doNotDisturbApplePlistID='com.apple.ncprefs'
-doNotDisturbApplePlistKey='dnd_prefs'
-doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
 dateMacBecameAwareOfUpdatesSeconds="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesSeconds)"
 wayOutsideGracePeriodAgeOutinSeconds="$(defaults read $softwareUpdatePreferenceFile wayOutsideGracePeriodAgeOutinSeconds)"
 currentDateinSeconds=$(/bin/date +%s)
@@ -162,10 +159,8 @@ numberofUpdatesRequringRestart=$(/usr/sbin/softwareupdate --list --no-scan | /us
 
 if [[ "$numberofAvailableUpdates" -eq "0" ]]; then
   echo "Client is up to date or has not yet identified needed updates, exiting"
-  if [[ -f "$softwareUpdatePreferenceFile" ]]; then
-    echo "Grace Period window in Place, removing"
-    rm -fv "$softwareUpdatePreferenceFile"
-  fi
+  defaults delete "$softwareUpdatePreferenceFile"
+  rm "$softwareUpdatePreferenceFile"
   exit 0
 fi
 

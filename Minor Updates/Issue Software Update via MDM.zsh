@@ -53,9 +53,6 @@ currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
 jamfManagementURL="$(defaults read /Library/Preferences/com.jamfsoftware.jamf jss_url)"
-doNotDisturbApplePlistID='com.apple.ncprefs'
-doNotDisturbApplePlistKey='dnd_prefs'
-doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
 
 doNotDisturbAppBundleIDs=(
   "us.zoom.xos"

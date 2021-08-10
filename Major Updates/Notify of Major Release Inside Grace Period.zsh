@@ -61,9 +61,6 @@ macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatibl
 macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirectory | awk -F ': ' '{print $2}')"
-doNotDisturbApplePlistID='com.apple.ncprefs'
-doNotDisturbApplePlistKey='dnd_prefs'
-doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
 
 if [[ $4 == "" ]]; then
   echo "Preference Domain was not set, bailing"

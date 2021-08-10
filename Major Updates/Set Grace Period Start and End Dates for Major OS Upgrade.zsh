@@ -74,7 +74,8 @@ fi
 
 if [[ $(defaults read $softwareUpdatePreferenceFile softwareUpdatePreferenceFileVersion -lt "2" ]]; then
 	echo "software update preference version is not correct, resetting"
-	rm -fv "$softwareUpdatePreferenceFile"
+	defaults delete "$softwareUpdatePreferenceFile"
+	rm "$softwareUpdatePreferenceFile"
 fi
 
 setSoftwareUpdateReleaseDate ()
@@ -107,10 +108,8 @@ elif [[ "$macOSVersionEpoch" -eq "10" ]] && [[ "$macOSVersionMajor" -lt "$macOST
   echo "We are in the OS X style versioning epoch and client requires a major update, setting software update preferences"
 else
   echo "Client seems to be up to date"
-  if [[ -f "$softwareUpdatePreferenceFile" ]]; then
-    echo "Software Update grace period preferences are stale, removing"
-    rm -fv "$softwareUpdatePreferenceFile"
-  fi
+  defaults delete "$softwareUpdatePreferenceFile"
+  rm "$softwareUpdatePreferenceFile"
   exit 0
 else
   setSoftwareUpdateReleaseDate

@@ -56,9 +56,6 @@ macOSSoftwareUpdateGracePeriodinDays="$(defaults read $softwareUpdatePreferenceF
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
-doNotDisturbApplePlistID='com.apple.ncprefs'
-doNotDisturbApplePlistKey='dnd_prefs'
-doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
 
 # macOSVersionMarketingCompatible is the commerical version number of macOS (10.x, 11.x)
 # macOSVersionEpoch is the major version number and is meant to draw a line between Big Sur and all prior versions of macOS
@@ -128,10 +125,8 @@ fi
 
 if [[ "$(softwareupdate --list --no-scan | grep -c '*')" -eq 0 ]]; then
   echo "Client is up to date, exiting"
-  if [[ -f $softwareUpdatePreferenceFile ]]; then
-    echo "grace period window preference in place, removing"
-    rm -fv $softwareUpdatePreferenceFile
-  fi
+  defaults delete "$softwareUpdatePreferenceFile"
+  rm "$softwareUpdatePreferenceFile"
   exit 0
 fi
 
