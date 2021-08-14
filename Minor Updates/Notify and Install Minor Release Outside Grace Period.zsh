@@ -104,7 +104,7 @@ You'll be presented with available updates to install after clicking 'Review'" \
   	-alignDescription left \
   	-icon "$dialogImagePath" \
   	-iconSize 120 \
-  	-button1 "Update Now" \
+  	-button1 "Review" \
   	-defaultButton 0 \
   	-timeout 300 \
     -startlaunchd &
