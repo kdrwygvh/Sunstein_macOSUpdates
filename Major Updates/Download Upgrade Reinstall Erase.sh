@@ -66,6 +66,7 @@
 # 16.6.01 -eq 11.4
 # 16.7.01 -eq 11.5
 # 16.7.02 -eq 11.5.1
+# 16.7.04 -eq 11.5.2
 # 17.0.11 -eq 12.0 public beta (21A5268h)
 
 # Jamf Variable Label names
@@ -132,9 +133,6 @@ macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatibl
 macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
 
 # Do Not Disturb variables and functions
-doNotDisturbApplePlistID='com.apple.ncprefs'
-doNotDisturbApplePlistKey='dnd_prefs'
-doNotdisturbApplePlistLocation="$currentUserHomeDirectoryPath/Library/Preferences/$doNotDisturbApplePlistID.plist"
 
 doNotDisturbAppBundleIDs=(
   "us.zoom.xos"
@@ -410,7 +408,7 @@ downloadOSInstaller()
         -button1 "OK" \
         -startlaunchd &
     fi
-    if softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion"; then
+    if  caffeinate -i softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion"; then
       echo "Download from Apple CDN was successful"
     else
       isMajorOSUpdateDeferred=$(system_profiler SPConfigurationProfileDataType | grep -c enforcedSoftwareUpdateMajorOSDeferredInstallDelay)
@@ -419,7 +417,7 @@ downloadOSInstaller()
       fi
       echo "Download from Apple CDN was not successfull, falling back to Jamf download if available"
       if [[ "$macOSInstallAppJamfEvent" != "" ]]; then
-        if ! /usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent"; then
+        if ! caffeinate -i /usr/local/bin/jamf policy -event "$macOSInstallAppJamfEvent"; then
           echo "Installer could not be downloaded from Jamf, bailing now"
           exit 1
         fi
