@@ -104,7 +104,6 @@ softwareUpdateNotification(){
 The update will begin after clicking 'Update Now'" \
   -alignDescription left \
   -icon "$dialogImagePath" \
-  -iconSize 120 \
   -button1 "Review" \
   -defaultButton 0 \
   -timeout 300 \

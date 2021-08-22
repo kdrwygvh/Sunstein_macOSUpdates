@@ -103,7 +103,6 @@ softwareUpdateNotification() {
 You'll be presented with available updates to install after clicking 'Review'" \
   	-alignDescription left \
   	-icon "$dialogImagePath" \
-  	-iconSize 120 \
   	-button1 "Review" \
   	-defaultButton 0 \
   	-timeout 300 \
@@ -121,7 +120,6 @@ aggressiveAttitudeNotification() {
 which will restart your Mac in a few minutes. Please stand by..." \
     -alignDescription left \
     -icon "$dialogImagePath" \
-    -iconSize 120 \
     -defaultButton 0 \
     -startlaunchd &
 }

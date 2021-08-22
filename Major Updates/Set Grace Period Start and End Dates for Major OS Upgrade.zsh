@@ -94,7 +94,7 @@ setSoftwareUpdateReleaseDate()
     defaults write $softwareUpdatePreferenceFile wayOutsideGracePeriodAgeOutinSeconds "$wayOutsideGracePeriodAgeOutinSeconds"
     echo "New Software Update Grace Period Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)"
   else
-    echo "Software Update grace period ity is already in place, continuing..."
+    echo "Software Update grace period is already in place, continuing..."
   fi
 }
 

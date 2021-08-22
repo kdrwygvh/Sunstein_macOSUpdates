@@ -45,10 +45,10 @@
 # Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with
 # "less than" the number of days you're specifying as the grace period duration
 
-companyPreferenceDomain=$4 # Required
+preferenceDomain=$4 # Required
 customBrandingImagePath=$5 # Optional
 majorOSUpdateInsideGracePeriodEvent=$6 # Required
-softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.majorSoftwareUpdatePreferences.plist"
+softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorSoftwareUpdatePreferences.plist"
 macOSTargetVersion=$(defaults read "$softwareUpdatePreferenceFile" macOSTargetVersion)
 macOSTargetVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSTargetVersion")"
 macOSTargetVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSTargetVersion")"
@@ -110,7 +110,6 @@ You have "$macOSSoftwareUpdateGracePeriodinDays" days to defer before they are a
 Auto Installation will start on or about
 "$gracePeriodWindowCloseDateNationalRepresentation"" \
     -icon "$dialogImagePath" \
-    -iconSize 100 \
     -button1 "Update Now" \
     -button2 "Dismiss" \
     -defaultButton 0 \
