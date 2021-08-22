@@ -43,7 +43,7 @@
 
 preferenceDomain=$4 # Required
 macOSSoftwareUpdateGracePeriodinDays=$5 # Required
-macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays=$6 # Optional
+macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays=7 # Optional
 dateMacBecameAwareOfUpdates="$(/bin/date "+%Y-%m-%d")"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B %e")"
 dateMacBecameAwareOfUpdatesSeconds="$(/bin/date +%s)"
@@ -53,7 +53,7 @@ softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.SoftwareUpd
 softwareUpdatePreferenceFileVersion="2"
 
 if [[ "$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays" != "" ]]; then
-  wayOutsideGracePeriodDeadlineinDays="$(($macOSSoftwareUpdateGracePeriodinDays+$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays))"
+  wayOutsideGracePeriodDeadlineinDays="$((macOSSoftwareUpdateGracePeriodinDays+macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays))"
   wayOutsideGracePeriodAgeOutinSeconds="$(/bin/date -v +"$wayOutsideGracePeriodDeadlineinDays"d +'%s')"
 fi
 

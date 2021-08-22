@@ -122,7 +122,7 @@ which will restart your Mac in a few minutes. Please stand by..." \
     -alignDescription left \
     -icon "$dialogImagePath" \
     -iconSize 120 \
-    -defaultButton 0
+    -defaultButton 0 \
     -startlaunchd &
 }
 
@@ -155,7 +155,7 @@ if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
 fi
 
 numberofAvailableUpdates=$(softwareupdate --list --no-scan | grep -c '*')
-numberofUpdatesRequringRestart=$(/usr/sbin/softwareupdate --list --no-scan | /usr/bin/grep -i -c 'restart')
+numberofUpdatesRequringRestart=$(softwareupdate --list --no-scan | /usr/bin/grep -i -c 'restart')
 
 if [[ "$numberofAvailableUpdates" -eq "0" ]]; then
   echo "Client is up to date or has not yet identified needed updates, exiting"
@@ -198,8 +198,7 @@ else
       /usr/local/bin/jamf policy -event "$mdmSoftwareUpdateEvent" -verbose
       "$jamfNotificationHelper" -message "Automatic updates will be applied now and your Mac will restart"
     else
-      softwareupdate --install --all --restart --verbose
-      if [[ "$?" -eq "0" ]]; then
+      if softwareupdate --install --all --restart --verbose; then
       	echo "software updates were successfully applied, notifying user and restarting"
       	"$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
       	exit 0
@@ -218,8 +217,7 @@ else
       /usr/local/bin/jamf policy -event "$mdmSoftwareUpdateEvent" -verbose
       "$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
     else
-      softwareupdate --install --all --restart --verbose
-      if [[ "$?" -eq "0" ]]; then
+      if softwareupdate --install --all --restart --verbose; then
       	echo "software updates were successfully applied, notifying user and restarting"
       	"$jamfNotificationHelper" -message "Automatic updates were applied on $(/bin/date "+%A, %B %e")"
       	exit 0

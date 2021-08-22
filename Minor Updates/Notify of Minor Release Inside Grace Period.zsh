@@ -47,7 +47,8 @@
 
 companyPreferenceDomain=$4 # Required
 customBrandingImagePath=$5 # Optional
-updateAttitude=$6 #Optional passive or aggressive
+updateAttitude=$6 # Optional passive or aggressive
+mdmSoftwareUpdateEvent=$7 # Required
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation)"
@@ -102,7 +103,6 @@ You have "$macOSSoftwareUpdateGracePeriodinDays" days to defer before they are a
 Auto Installation will start on or about
 "$gracePeriodWindowCloseDateNationalRepresentation"" \
     -icon "$dialogImagePath" \
-    -iconSize 100 \
     -button1 "Review" \
     -button2 "Dismiss" \
     -defaultButton 0 \
@@ -136,7 +136,7 @@ if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
 fi
 
 if [[ "$currentUser" = "root" ]]; then
-  echo "User is not in session, not bothering with presenting the software update notification this time around, but checking update attitude"
+  echo "User is not in session, not bothering with presenting the software update notification this time around but checking update attitude"
   numberofUpdatesRequringRestart="$(softwareupdate --list --no-scan | /usr/bin/grep -i -c 'restart')"
   if [[ "$updateAttitude" == "aggressive" && "$numberofUpdatesRequringRestart" -ge "1" ]]; then
     echo "Aggressive attitude is set and user is not logged in, performing all updates and restarting now"

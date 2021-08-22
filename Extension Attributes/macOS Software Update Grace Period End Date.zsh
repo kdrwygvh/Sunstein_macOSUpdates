@@ -50,7 +50,7 @@ if [[ "$companyPreferenceDomain" = "" ]]; then
 	exit 2
 fi
 
-if [[ ! -f /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist ]]; then
+if [[ $(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist gracePeriodWindowCloseDate) = "" ]]; then
 	echo "<result>None</result>"
 else
 	echo "<result>$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist gracePeriodWindowCloseDate)</result>"

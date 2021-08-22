@@ -45,7 +45,7 @@
 # Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with "more than"
 # the number of days you're specifying as the grace period duration
 
-companyPreferenceDomain=$4 # required
+preferenceDomain=$4 # required
 customBrandingImagePath=$5 # optional
 notificationTitle="$6" # optional
 updateAttitude=$7 # passive/aggressive, defaults to passive

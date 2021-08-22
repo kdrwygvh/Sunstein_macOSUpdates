@@ -56,7 +56,7 @@ softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorOSSoft
 softwareUpdatePreferenceFileVersion="2"
 
 if [[ "$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays" != "" ]]; then
-  wayOutsideGracePeriodDeadlineinDays="$(($macOSSoftwareUpdateGracePeriodinDays+$macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays))"
+  wayOutsideGracePeriodDeadlineinDays="$((macOSSoftwareUpdateGracePeriodinDays+macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays))"
   wayOutsideGracePeriodAgeOutinSeconds="$(/bin/date -v -"$wayOutsideGracePeriodDeadlineinDays"d +'%s')"
 fi
 if [[ "$preferenceDomain" == "" ]]; then
@@ -72,18 +72,18 @@ if [[ "$macOSTargetVersion" == "" ]]; then
   exit 2
 fi
 
-if [[ $(defaults read $softwareUpdatePreferenceFile softwareUpdatePreferenceFileVersion -lt "2" ]]; then
-	echo "software update preference version is not correct, resetting"
-	defaults delete "$softwareUpdatePreferenceFile"
-	rm "$softwareUpdatePreferenceFile"
+if [[ $(defaults read $softwareUpdatePreferenceFile softwareUpdatePreferenceFileVersion) -lt "2" ]]; then
+  echo "software update preference version is not correct, resetting"
+  defaults delete "$softwareUpdatePreferenceFile"
+  rm "$softwareUpdatePreferenceFile"
 fi
 
-setSoftwareUpdateReleaseDate ()
+setSoftwareUpdateReleaseDate()
 
 {
   defaults write $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
   if [[ "$(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)" = "" ]]; then
-  	defaults write $softwareUpdatePreferenceFile softwareUpdatePreferenceFileVersion -int "2"
+    defaults write $softwareUpdatePreferenceFile softwareUpdatePreferenceFileVersion -int "2"
     defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
     defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
     defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesSeconds "$dateMacBecameAwareOfUpdatesSeconds"
@@ -111,6 +111,6 @@ else
   defaults delete "$softwareUpdatePreferenceFile"
   rm "$softwareUpdatePreferenceFile"
   exit 0
-else
-  setSoftwareUpdateReleaseDate
 fi
+setSoftwareUpdateReleaseDate
+
