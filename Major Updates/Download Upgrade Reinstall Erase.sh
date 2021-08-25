@@ -373,7 +373,7 @@ downloadOSInstaller()
     startOSInstall="$installerPath"/Contents/Resources/startosinstall
     willDownload="true"
   elif [[ "$installerCount" -ge "1" ]]; then
-    installerPaths="$(mdfind -name "$installerName" -0 | xargs -I {} -0 echo {} | grep -v '\.bom\|\.plist')"
+    installerPaths="$(mdfind -name "$installerName" -0 | xargs -I {} -0 echo {} | grep \.app$)"
     echo "Found installers at "$installerPaths", checking version"
     IFS=$'\n'
     for installer in $installerPaths; do
@@ -408,7 +408,7 @@ downloadOSInstaller()
         -button1 "OK" \
         -startlaunchd &
     fi
-    if  caffeinate -i softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion"; then
+    if caffeinate -i softwareupdate --fetch-full-installer --full-installer-version "$macOSDownloadVersion"; then
       echo "Download from Apple CDN was successful"
     else
       isMajorOSUpdateDeferred=$(system_profiler SPConfigurationProfileDataType | grep -c enforcedSoftwareUpdateMajorOSDeferredInstallDelay)
