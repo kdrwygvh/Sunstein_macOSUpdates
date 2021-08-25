@@ -120,7 +120,9 @@ aggressiveAttitudeNotification() {
 which will restart your Mac in a few minutes. Please stand by..." \
     -alignDescription left \
     -icon "$dialogImagePath" \
+    -button1 "OK" \
     -defaultButton 0 \
+    -timeout 300 \
     -startlaunchd &
 }
 
