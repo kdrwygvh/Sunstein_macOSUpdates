@@ -366,14 +366,14 @@ checkAvailableDiskSpace()
 
 downloadOSInstaller()
 {
-  installerCount="$(mdfind -name "$installerName" | grep -v '\.bom\|\.plist' | wc -l | sed "s/^[ \t]*//")"
+  installerCount="$(mdfind -name "$installerName" | grep \.app$ | grep -v "/Library/Application Support/JAMF" | wc -l | sed "s/^[ \t]*//")"
   if [[ "$installerCount" -eq "0" ]]; then
     echo "No installers present, downloading a fresh copy"
     installerPath="/Applications/$installerName.app"
     startOSInstall="$installerPath"/Contents/Resources/startosinstall
     willDownload="true"
   elif [[ "$installerCount" -ge "1" ]]; then
-    installerPaths="$(mdfind -name "$installerName" -0 | xargs -I {} -0 echo {} | grep \.app$)"
+    installerPaths="$(mdfind -name "$installerName" -0 | xargs -I {} -0 echo {} | grep \.app$ | grep -v "/Library/Application Support/JAMF")"
     echo "Found installers at "$installerPaths", checking version"
     IFS=$'\n'
     for installer in $installerPaths; do
