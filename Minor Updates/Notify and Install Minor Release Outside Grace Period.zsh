@@ -159,8 +159,8 @@ numberofUpdatesRequringRestart=$(softwareupdate --list --no-scan | /usr/bin/grep
 
 if [[ "$numberofAvailableUpdates" -eq "0" ]]; then
   echo "Client is up to date or has not yet identified needed updates, exiting"
-  defaults delete "$softwareUpdatePreferenceFile"
-  rm "$softwareUpdatePreferenceFile"
+  defaults delete "$softwareUpdatePreferenceFile" &> /dev/null
+  rm "$softwareUpdatePreferenceFile" &> /dev/null
   exit 0
 fi
 

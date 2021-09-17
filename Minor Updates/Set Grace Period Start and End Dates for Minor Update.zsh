@@ -68,8 +68,8 @@ fi
 
 if [[ $(defaults read $softwareUpdatePreferenceFile softwareUpdatePreferenceFileVersion) -lt "2" ]] && [[ -e "$softwareUpdatePreferenceFile" ]]; then
   echo "software update preference version is not correct, resetting"
-  defaults delete "$softwareUpdatePreferenceFile"
-  rm "$softwareUpdatePreferenceFile"
+  defaults delete "$softwareUpdatePreferenceFile" &> /dev/null
+  rm "$softwareUpdatePreferenceFile" &> /dev/null
 fi
 
 setSoftwareUpdateReleaseDate()
@@ -93,8 +93,8 @@ setSoftwareUpdateReleaseDate()
 
 if [[ "$(softwareupdate --list --no-scan | grep -c '*')" -eq "0" ]]; then
   echo "Client seems to be up to date"
-  defaults delete "$softwareUpdatePreferenceFile"
-  rm "$softwareUpdatePreferenceFile"
+  defaults delete "$softwareUpdatePreferenceFile" &> /dev/null
+  rm "$softwareUpdatePreferenceFile" &> /dev/null
 else
   setSoftwareUpdateReleaseDate
 fi

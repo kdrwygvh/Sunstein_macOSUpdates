@@ -125,8 +125,8 @@ fi
 
 if [[ "$(softwareupdate --list --no-scan | grep -c '*')" -eq 0 ]]; then
   echo "Client is up to date, exiting"
-  defaults delete "$softwareUpdatePreferenceFile"
-  rm "$softwareUpdatePreferenceFile"
+  defaults delete "$softwareUpdatePreferenceFile" &> /dev/null
+  rm "$softwareUpdatePreferenceFile" &> /dev/null
   exit 0
 fi
 
