@@ -49,6 +49,7 @@ companyPreferenceDomain=$4 # Required
 customBrandingImagePath=$5 # Optional
 updateAttitude=$6 # Optional passive or aggressive
 mdmSoftwareUpdateEvent=$7 # Required
+respectDNDApplications=$8 # Required
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation)"
@@ -151,10 +152,10 @@ if [[ "$currentUser" = "root" ]]; then
   	echo "Passive mode set, exiting"
   	exit 0
   fi
-elif [[ "$currentUser" != "root" ]]; then
+elif [[ "$currentUser" != "root" ]] && [[ "$respectDNDApplications" != "false" ]]; then
   frontAppASN="$(lsappinfo front)"
   for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
-    frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
+    frontAppBundleID="$(lsappinfo info -app "$frontAppASN" | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
     if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
       echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification"
       exit 0

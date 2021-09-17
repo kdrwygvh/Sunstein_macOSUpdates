@@ -48,6 +48,7 @@
 preferenceDomain=$4 # Required
 customBrandingImagePath=$5 # Optional
 majorOSUpdateInsideGracePeriodEvent=$6 # Required
+respectDNDApplications=$8 # Required
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorSoftwareUpdatePreferences.plist"
 macOSTargetVersion=$(defaults read "$softwareUpdatePreferenceFile" macOSTargetVersion)
 macOSTargetVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSTargetVersion")"
@@ -145,7 +146,7 @@ fi
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, not bothering with presenting the software update notification this time around"
   exit 0
-elif [[ "$currentUser" != "root" ]]; then
+elif [[ "$currentUser" != "root" ]] && [[ "$respectDNDApplications" != "false" ]]; then
   for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
     frontAppASN="$(lsappinfo front)"
     frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"

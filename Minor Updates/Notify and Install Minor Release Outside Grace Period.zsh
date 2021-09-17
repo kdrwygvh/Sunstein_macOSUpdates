@@ -51,6 +51,7 @@ mdmSoftwareUpdateEvent=$6 # Required
 notificationTitle="$7" #Optional
 updateAttitude=$8 # Optional passive or aggressive, defaults to passive
 aggressiveUpdateIdleTimeinMinutes=$9 # Required if aggressive attitude is set
+respectDNDApplications=${10} # Required
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirectory | awk -F ': ' '{print $2}')"
@@ -185,7 +186,7 @@ else
   for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
     frontAppASN="$(lsappinfo front)"
     frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
-    if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
+    if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]] && [[ "$respectDNDApplications" = "true" ]]; then
       echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification"
       exit 0
     fi

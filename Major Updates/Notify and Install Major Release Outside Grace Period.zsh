@@ -52,6 +52,7 @@ updateAttitude=$7 # passive/aggressive, defaults to passive
 macOSPassiveUpdateEvent=$8 # required
 macOSAggressiveUpdateEvent=$9 # optional
 offermacOSUpdateviaSystemPreferences="${10}" #true/false
+respectDNDApplications="${11}" # Required
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirectory | awk -F ': ' '{print $2}')"
@@ -139,7 +140,7 @@ fi
 for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
   frontAppASN="$(lsappinfo front)"
   frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
-  if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
+  if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]] && [[ "$respectDNDApplications" = "true" ]]; then
     echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification"
     exit 0
   fi
