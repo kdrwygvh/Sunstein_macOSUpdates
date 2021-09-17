@@ -67,7 +67,8 @@
 # 16.7.01 -eq 11.5
 # 16.7.02 -eq 11.5.1
 # 16.7.04 -eq 11.5.2
-# 17.0.11 -eq 12.0 public beta (21A5268h)
+# 16.8.00 -eq 11.6
+
 
 # Jamf Variable Label names
 
@@ -131,22 +132,6 @@ currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirector
 macOSVersionMarketingCompatible="$(sw_vers -productVersion)"
 macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatible")"
 macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
-
-# Do Not Disturb variables and functions
-
-doNotDisturbAppBundleIDs=(
-  "us.zoom.xos"
-  "com.microsoft.teams"
-  "com.cisco.webexmeetingsapp"
-  "com.webex.meetingmanager"
-  "com.apple.FaceTime"
-  "com.apple.iWork.Keynote"
-  "com.microsoft.Powerpoint"
-  "com.apple.FinalCut"
-  "com.apple.TV"
-)
-
-doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
 # Function declarations
 
@@ -547,15 +532,6 @@ startOSInstallerHeadless()
     "$startOSInstall" --agreetolicense --pidtosignal startosinstall --rebootdelay "60" --nointeraction --forcequitapps &
   fi
 }
-
-frontAppASN="$(lsappinfo front)"
-for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
-  frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
-  if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
-    echo "Do not disturb app $frontAppBundleID is frontmost, bailing out"
-    exit 0
-  fi
-done
 
 if [[ "$currentUser" = "root" ]]; then
   echo "Nobody is logged in, assume runheadless and proceed as far as we can without an interactive session"
