@@ -62,6 +62,8 @@ doNotDisturbAppBundleIDs=(
   "com.apple.FaceTime"
   "com.apple.iWork.Keynote"
   "com.microsoft.Powerpoint"
+  "com.apple.FinalCut"
+  "com.apple.TV"
 )
 
 doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
@@ -129,6 +131,10 @@ elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
     done
   fi
 fi
+
+# workaround for PI-009722
+
+/usr/libexec/mdmclient AvailableOSUpdates
 
 ## POST Software Update MDM Command. Will only work on ABM enrolled devices or Big Sur Devices that are supervised with a user approved MDM enrollment profile and escrowed bootstrap token
 curl -s -f -X "POST" "$jamfManagementURL""JSSResource/computercommands/command/ScheduleOSUpdate/action/install/id/$jamfComputerID" \
