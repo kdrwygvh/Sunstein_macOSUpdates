@@ -151,6 +151,9 @@ if [[ "$currentUser" = "root" ]]; then
   elif [[ "$updateAttitude" == "passive" && "$numberofUpdatesRequringRestart" -ge "1" ]]; then
   	echo "Passive mode set, exiting"
   	exit 0
+  else
+  	echo "No updates are available, exiting"
+  	exit 0
   fi
 elif [[ "$currentUser" != "root" ]] && [[ "$respectDNDApplications" != "false" ]]; then
   frontAppASN="$(lsappinfo front)"

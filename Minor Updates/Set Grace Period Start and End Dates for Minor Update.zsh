@@ -43,7 +43,7 @@
 
 preferenceDomain=$4 # Required
 macOSSoftwareUpdateGracePeriodinDays=$5 # Required
-macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays=7 # Optional
+macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays=$6 # Optional
 dateMacBecameAwareOfUpdates="$(/bin/date "+%Y-%m-%d")"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B %e")"
 dateMacBecameAwareOfUpdatesSeconds="$(/bin/date +%s)"

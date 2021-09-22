@@ -181,6 +181,9 @@ if [[ "$currentUser" = "root" ]]; then
       softwareupdate --install --all --restart --verbose
       exit 0
     fi
+  else
+  	echo "No updates to apply, exiting"
+  	exit 0
   fi
 else
   for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do

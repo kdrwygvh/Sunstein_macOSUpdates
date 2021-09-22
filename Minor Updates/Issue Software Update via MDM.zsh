@@ -48,6 +48,7 @@
 jamfAPIAccount="$4" # Required
 jamfAPIPassword="$5" # Required
 logoPath="$6" # Optional
+respectDNDApplications=$7 # Required
 hardwareUUID="$(system_profiler SPHardwareDataType | grep "Hardware UUID" | awk '{print $3}')"
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
@@ -120,7 +121,7 @@ if [[ "$numberofUpdatesRequringRestart" -eq "0" ]]; then
   echo "No updates found which require a restart, suppressing notifications"
 elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
   echo "Updates that require a restart were found, checking for do not disturb apps"
-  if [[ "$userLoggedInStatus" -eq "1" ]]; then
+  if [[ "$userLoggedInStatus" -eq "1" ]] && [[ "$respectDNDApplications" = "true" ]]; then
     for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
       frontAppASN="$(lsappinfo front)"
       frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
