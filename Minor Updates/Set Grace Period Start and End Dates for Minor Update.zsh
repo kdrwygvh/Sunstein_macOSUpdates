@@ -93,8 +93,10 @@ setSoftwareUpdateReleaseDate()
 
 if [[ "$(softwareupdate --list --no-scan | grep -c '*')" -eq "0" ]]; then
   echo "Client seems to be up to date"
-  defaults delete "$softwareUpdatePreferenceFile" &> /dev/null
-  rm "$softwareUpdatePreferenceFile" &> /dev/null
+  if [[ -e "$softwareUpdatePreferenceFile" ]]; then
+  	defaults delete "$softwareUpdatePreferenceFile"
+  	rm "$softwareUpdatePreferenceFile"
+  fi
 else
   setSoftwareUpdateReleaseDate
 fi

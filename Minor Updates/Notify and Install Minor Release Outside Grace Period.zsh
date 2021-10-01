@@ -118,7 +118,7 @@ aggressiveAttitudeNotification() {
     -windowPosition ur \
     -title "$notificationTitle" \
     -description "System updates must be applied now
-which will restart your Mac in a few minutes. Please stand by..." \
+which will restart your Mac in about 15 minutes. Please stand by..." \
     -alignDescription left \
     -icon "$dialogImagePath" \
     -button1 "OK" \
@@ -160,9 +160,11 @@ numberofUpdatesRequringRestart=$(softwareupdate --list --no-scan | /usr/bin/grep
 
 if [[ "$numberofAvailableUpdates" -eq "0" ]]; then
   echo "Client is up to date or has not yet identified needed updates, exiting"
-  defaults delete "$softwareUpdatePreferenceFile" &> /dev/null
-  rm "$softwareUpdatePreferenceFile" &> /dev/null
-  exit 0
+  if [[ -e "$softwareUpdatePreferenceFile" ]] ; then
+  	defaults delete "$softwareUpdatePreferenceFile"
+  	rm "$softwareUpdatePreferenceFile"
+  	exit 0
+  fi
 fi
 
 if [[ "$numberofUpdatesRequringRestart" -eq "0" ]]; then
@@ -210,6 +212,7 @@ else
       	echo "something went wrong with applying the software update, notifying the user"
       	"$jamfNotificationHelper" -message "Update has been stopped due to a problem. We'll try again later..."
       	killall "jamfHelper"
+      	exit 1
       fi
     fi
   fi
@@ -229,6 +232,7 @@ else
       	echo "something went wrong with applying the software update, notifying the user"
       	"$jamfNotificationHelper" -message "Update has been stopped due to a problem. We'll try again later..."
       	killall "jamfHelper"
+      	exit 1
       fi
     fi
   fi
@@ -247,5 +251,4 @@ else
     fi
   fi
 fi
-
 
