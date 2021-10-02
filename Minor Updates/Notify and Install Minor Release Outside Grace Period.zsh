@@ -45,6 +45,7 @@
 # Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with "more than"
 # the number of days you're specifying as the grace period duration
 
+plistBuddy="/usr/libexec/PlistBuddy"
 companyPreferenceDomain=$4 # Required
 customBrandingImagePath=$5 # Optional
 mdmSoftwareUpdateEvent=$6 # Required
@@ -58,8 +59,8 @@ currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirect
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 jamfNotificationHelper="/Library/Application Support/JAMF/bin/Management Action.app/Contents/MacOS/Management Action"
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
-dateMacBecameAwareOfUpdatesSeconds="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesSeconds)"
-wayOutsideGracePeriodAgeOutinSeconds="$(defaults read $softwareUpdatePreferenceFile wayOutsideGracePeriodAgeOutinSeconds)"
+dateMacBecameAwareOfUpdatesSeconds=$($plistBuddy -c "Print:dateMacBecameAwareOfUpdatesSeconds" "$softwareUpdatePreferenceFile")
+wayOutsideGracePeriodAgeOutinSeconds=$($plistBuddy -c "Print:wayOutsideGracePeriodAgeOutinSeconds" "$softwareUpdatePreferenceFile")
 currentDateinSeconds=$(/bin/date +%s)
 
 # macOSVersionMarketingCompatible is the commerical version number of macOS (10.x, 11.x)
@@ -69,7 +70,7 @@ macOSVersionMarketingCompatible="$(sw_vers -productVersion)"
 macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatible")"
 macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
 
-doNotDisturbAppBundleIDs=(
+declare -a doNotDisturbAppBundleIDs=(
   "us.zoom.xos"
   "com.microsoft.teams"
   "com.cisco.webexmeetingsapp"
@@ -80,8 +81,6 @@ doNotDisturbAppBundleIDs=(
   "com.apple.FinalCut"
   "com.apple.TV"
 )
-
-doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
@@ -160,7 +159,7 @@ numberofUpdatesRequringRestart=$(softwareupdate --list --no-scan | /usr/bin/grep
 
 if [[ "$numberofAvailableUpdates" -eq "0" ]]; then
   echo "Client is up to date or has not yet identified needed updates, exiting"
-  if [[ -e "$softwareUpdatePreferenceFile" ]] ; then
+  if [[ -e "$softwareUpdatePreferenceFile" ]]; then
   	defaults delete "$softwareUpdatePreferenceFile"
   	rm "$softwareUpdatePreferenceFile"
   	exit 0
@@ -188,7 +187,7 @@ if [[ "$currentUser" = "root" ]]; then
   	exit 0
   fi
 else
-  for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
+  for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDs[@]}; do
     frontAppASN="$(lsappinfo front)"
     frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
     if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]] && [[ "$respectDNDApplications" = "true" ]]; then

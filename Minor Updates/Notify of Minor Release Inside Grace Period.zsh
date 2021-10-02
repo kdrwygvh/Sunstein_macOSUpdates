@@ -45,6 +45,7 @@
 # Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with
 # "less than" the number of days you're specifying as the grace period duration
 
+plistBuddy="/usr/libexec/PlistBuddy"
 companyPreferenceDomain=$4 # Required
 customBrandingImagePath=$5 # Optional
 updateAttitude=$6 # Optional passive or aggressive
@@ -52,9 +53,9 @@ mdmSoftwareUpdateEvent=$7 # Required
 respectDNDApplications=$8 # Required
 softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
-dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation)"
-gracePeriodWindowCloseDateNationalRepresentation="$(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDateNationalRepresentation)"
-macOSSoftwareUpdateGracePeriodinDays="$(defaults read $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays)"
+dateMacBecameAwareOfUpdatesNationalRepresentation=$($plistBuddy -c "Print:dateMacBecameAwareOfUpdatesNationalRepresentation" "$softwareUpdatePreferenceFile")
+gracePeriodWindowCloseDateNationalRepresentation=$($plistBuddy -c "Print:gracePeriodWindowCloseDateNationalRepresentation" "$softwareUpdatePreferenceFile")
+macOSSoftwareUpdateGracePeriodinDays=$($plistBuddy -c "Print:macOSSoftwareUpdateGracePeriodinDays" "$softwareUpdatePreferenceFile")
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
@@ -66,7 +67,7 @@ macOSVersionMarketingCompatible="$(sw_vers -productVersion)"
 macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatible")"
 macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
 
-doNotDisturbAppBundleIDs=(
+declare -a doNotDisturbAppBundleIDs=(
   "us.zoom.xos"
   "com.microsoft.teams"
   "com.cisco.webexmeetingsapp"
@@ -77,8 +78,6 @@ doNotDisturbAppBundleIDs=(
   "com.apple.FinalCut"
   "com.apple.TV"
 )
-
-doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
@@ -114,7 +113,7 @@ Auto Installation will start on or about
   )
 }
 
-if [[ $4 == "" ]]; then
+if [[ $companyPreferenceDomain == "" ]]; then
   echo "Preference Domain was not set, bailing"
   exit 2
 fi
@@ -159,7 +158,7 @@ if [[ "$currentUser" = "root" ]]; then
   fi
 elif [[ "$currentUser" != "root" ]] && [[ "$respectDNDApplications" != "false" ]]; then
   frontAppASN="$(lsappinfo front)"
-  for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
+  for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDs[@]}; do
     frontAppBundleID="$(lsappinfo info -app "$frontAppASN" | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
     if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
       echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification"

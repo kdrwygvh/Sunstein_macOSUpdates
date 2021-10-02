@@ -41,16 +41,17 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+plistBuddy="/usr/libexec/PlistBuddy"
 preferenceDomain=$4 # Required
 macOSSoftwareUpdateGracePeriodinDays=$5 # Required
 macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays=$6 # Optional
 macOSTargetVersion=$7 # Required
 macOSTargetVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSTargetVersion")"
 macOSTargetVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSTargetVersion")"
-dateMacBecameAwareOfUpdates="$(/bin/date "+%Y-%m-%d")"
+dateMacBecameAwareOfUpdates="$(/bin/date)"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B %e")"
 dateMacBecameAwareOfUpdatesSeconds="$(/bin/date +%s)"
-gracePeriodWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")"
+gracePeriodWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d)"
 gracePeriodWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorOSSoftwareUpdatePreferences.plist"
 softwareUpdatePreferenceFileVersion="2"
@@ -72,7 +73,7 @@ if [[ "$macOSTargetVersion" == "" ]]; then
   exit 2
 fi
 
-if [[ $(defaults read $softwareUpdatePreferenceFile softwareUpdatePreferenceFileVersion) -lt "2" ]]; then
+if [[ $($plistBuddy -c 'Print:softwareUpdatePreferenceFileVersion' $softwareUpdatePreferenceFile ) -lt "2" ]] && [[ -e "$softwareUpdatePreferenceFile" ]]; then
   echo "software update preference version is not correct, resetting"
   defaults delete "$softwareUpdatePreferenceFile"
   rm "$softwareUpdatePreferenceFile"
@@ -81,18 +82,18 @@ fi
 setSoftwareUpdateReleaseDate()
 
 {
-  defaults write $softwareUpdatePreferenceFile macOSSoftwareUpdateGracePeriodinDays -int "$macOSSoftwareUpdateGracePeriodinDays"
-  if [[ "$(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)" = "" ]]; then
-    defaults write $softwareUpdatePreferenceFile softwareUpdatePreferenceFileVersion -int "2"
-    defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdates "$dateMacBecameAwareOfUpdates"
-    defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesNationalRepresentation "$dateMacBecameAwareOfUpdatesNationalRepresentation"
-    defaults write $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesSeconds "$dateMacBecameAwareOfUpdatesSeconds"
-    defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDate "$gracePeriodWindowClosureDate"
-    defaults write $softwareUpdatePreferenceFile gracePeriodWindowCloseDateNationalRepresentation "$gracePeriodWindowClosureDateNationalRepresentation"
-    defaults write $softwareUpdatePreferenceFile macOSTargetVersion "$macOSTargetVersion"
-    defaults write $softwareUpdatePreferenceFile wayOutsideGracePeriodDeadlineinDays "$wayOutsideGracePeriodDeadlineinDays"
-    defaults write $softwareUpdatePreferenceFile wayOutsideGracePeriodAgeOutinSeconds "$wayOutsideGracePeriodAgeOutinSeconds"
-    echo "New Software Update Grace Period Closure Date in Place and datestamped $(defaults read $softwareUpdatePreferenceFile gracePeriodWindowCloseDate)"
+  $plistBuddy -c "Add:macOSSoftwareUpdateGracePeriodinDays integer $macOSSoftwareUpdateGracePeriodinDays" "$softwareUpdatePreferenceFile"
+  if [[ $($plistBuddy -c "Print:gracePeriodWindowCloseDate" "$softwareUpdatePreferenceFile") = "" ]]; then
+    $plistBuddy -c "Add:softwareUpdatePreferenceFileVersion integer 2" "$softwareUpdatePreferenceFile"
+    $plistBuddy -c "Add:dateMacBecameAwareOfUpdates date $dateMacBecameAwareOfUpdates" "$softwareUpdatePreferenceFile"
+    $plistBuddy -c "Add:dateMacBecameAwareOfUpdatesNationalRepresentation string $dateMacBecameAwareOfUpdatesNationalRepresentation" "$softwareUpdatePreferenceFile"
+    $plistBuddy -c "Add:dateMacBecameAwareOfUpdatesSeconds integer $dateMacBecameAwareOfUpdatesSeconds" "$softwareUpdatePreferenceFile"
+    $plistBuddy -c "Add:gracePeriodWindowCloseDate date $gracePeriodWindowClosureDate" "$softwareUpdatePreferenceFile"
+    $plistBuddy -c "Add:gracePeriodWindowCloseDateNationalRepresentation string $gracePeriodWindowClosureDateNationalRepresentation" "$softwareUpdatePreferenceFile"
+    $plistBuddy -c "Add:macOSTargetVersion string $macOSTargetVersion" "$softwareUpdatePreferenceFile"
+    $plistBuddy -c "Add:wayOutsideGracePeriodDeadlineinDays integer $wayOutsideGracePeriodDeadlineinDays" "$softwareUpdatePreferenceFile"
+    $plistBuddy -c "Add:wayOutsideGracePeriodAgeOutinSeconds integer $wayOutsideGracePeriodAgeOutinSeconds" "$softwareUpdatePreferenceFile"
+    echo "New Software Update Grace Period Closure Date in Place and datestamped $($plistBuddy -c 'Print:gracePeriodWindowCloseDate' $softwareUpdatePreferenceFile)"
   else
     echo "Software Update grace period is already in place, continuing..."
   fi

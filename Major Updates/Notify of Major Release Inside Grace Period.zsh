@@ -45,18 +45,19 @@
 # Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with
 # "less than" the number of days you're specifying as the grace period duration
 
+plistBuddy="/usr/libexec/PlistBuddy"
 preferenceDomain=$4 # Required
 customBrandingImagePath=$5 # Optional
 majorOSUpdateInsideGracePeriodEvent=$6 # Required
-respectDNDApplications=$8 # Required
+respectDNDApplications=$7 # Required
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorSoftwareUpdatePreferences.plist"
-macOSTargetVersion=$(defaults read "$softwareUpdatePreferenceFile" macOSTargetVersion)
+macOSTargetVersion=$($plistBuddy -c "Print:macOSTargetVersion" "$softwareUpdatePreferenceFile")
 macOSTargetVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSTargetVersion")"
 macOSTargetVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSTargetVersion")"
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
-dateMacBecameAwareOfUpdatesNationalRepresentation="$(defaults read "$softwareUpdatePreferenceFile" dateMacBecameAwareOfUpdatesNationalRepresentation)"
-gracePeriodWindowCloseDateNationalRepresentation="$(defaults read "$softwareUpdatePreferenceFile" gracePeriodWindowCloseDateNationalRepresentation)"
-macOSSoftwareUpdateGracePeriodinDays="$(defaults read "$softwareUpdatePreferenceFile" macOSSoftwareUpdateGracePeriodinDays)"
+dateMacBecameAwareOfUpdatesNationalRepresentation=$($plistBuddy -c "Print:dateMacBecameAwareOfUpdatesNationalRepresentation" "$softwareUpdatePreferenceFile")
+gracePeriodWindowCloseDateNationalRepresentation=$($plistBuddy -c "Print:gracePeriodWindowCloseDateNationalRepresentation" "$softwareUpdatePreferenceFile")
+macOSSoftwareUpdateGracePeriodinDays=$($plistBuddy -c "Print:macOSSoftwareUpdateGracePeriodinDays" "$softwareUpdatePreferenceFile")
 macOSVersionMarketingCompatible="$(sw_vers -productVersion)"
 macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatible")"
 macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
@@ -73,7 +74,7 @@ if [[ $6 == "" ]]; then
   exit 2
 fi
 
-doNotDisturbAppBundleIDs=(
+declare -a doNotDisturbAppBundleIDs=(
   "us.zoom.xos"
   "com.microsoft.teams"
   "com.cisco.webexmeetingsapp"
@@ -83,8 +84,6 @@ doNotDisturbAppBundleIDs=(
   "com.microsoft.Powerpoint"
   "com.apple.FinalCut"
 )
-
-doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
@@ -127,7 +126,7 @@ if [[ "$macOSVersionEpoch" -ge "11" ]]; then
     echo "Client is up to date or newer than the version we're expexting, exiting"
     if [[ -f "$softwareUpdatePreferenceFile" ]]; then
       echo "Grace period window preference in Place, removing"
-      rm -fv "$softwareUpdatePreferenceFile"
+      rm "$softwareUpdatePreferenceFile"
       exit 0
     fi
   fi
@@ -137,7 +136,7 @@ elif [[ "$macOSVersionEpoch" -eq "10" ]]; then
     echo "Client is up to date or newer than the version we're expecting, exiting"
     if [[ -f "$softwareUpdatePreferenceFile" ]]; then
       echo "Grace period window preference in Place, removing"
-      rm -fv "$softwareUpdatePreferenceFile"
+      rm "$softwareUpdatePreferenceFile"
     fi
     exit 0
   fi
@@ -147,7 +146,7 @@ if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, not bothering with presenting the software update notification this time around"
   exit 0
 elif [[ "$currentUser" != "root" ]] && [[ "$respectDNDApplications" != "false" ]]; then
-  for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
+  for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDs[@]}; do
     frontAppASN="$(lsappinfo front)"
     frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
     if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then

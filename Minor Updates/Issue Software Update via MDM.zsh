@@ -45,6 +45,7 @@
 # Computer - Create Read Update
 # Jamf Pro Server Actions - Send Computer Remote Command to Download and Install macOS Update
 
+plistBuddy="/usr/libexec/PlistBuddy"
 jamfAPIAccount="$4" # Required
 jamfAPIPassword="$5" # Required
 logoPath="$6" # Optional
@@ -53,9 +54,9 @@ hardwareUUID="$(system_profiler SPHardwareDataType | grep "Hardware UUID" | awk 
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
-jamfManagementURL="$(defaults read /Library/Preferences/com.jamfsoftware.jamf jss_url)"
+jamfManagementURL=$($plistBuddy -c "Print:jss_url" /Library/Preferences/com.jamfsoftware.jamf)
 
-doNotDisturbAppBundleIDs=(
+declare -a doNotDisturbAppBundleIDs=(
   "us.zoom.xos"
   "com.microsoft.teams"
   "com.cisco.webexmeetingsapp"
@@ -66,8 +67,6 @@ doNotDisturbAppBundleIDs=(
   "com.apple.FinalCut"
   "com.apple.TV"
 )
-
-doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not logged into GUI, console, or remote session"
@@ -122,7 +121,7 @@ if [[ "$numberofUpdatesRequringRestart" -eq "0" ]]; then
 elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
   echo "Updates that require a restart were found, checking for do not disturb apps"
   if [[ "$userLoggedInStatus" -eq "1" ]] && [[ "$respectDNDApplications" = "true" ]]; then
-    for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
+    for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDs[@]}; do
       frontAppASN="$(lsappinfo front)"
       frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
       if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then

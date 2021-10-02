@@ -45,6 +45,7 @@
 # Build a Jamf Pro Smart Group using the "Grace Period Window Start Date" attribute with "more than"
 # the number of days you're specifying as the grace period duration
 
+plistBuddy="/usr/libexec/PlistBuddy"
 preferenceDomain=$4 # required
 customBrandingImagePath=$5 # optional
 notificationTitle="$6" # optional
@@ -59,8 +60,8 @@ currentUserHomeDirectoryPath="$(dscl . -read /Users/"$currentUser" NFSHomeDirect
 jamfHelper="/Library/Application Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper"
 jamfNotificationHelper="/Library/Application Support/JAMF/bin/Management Action.app/Contents/MacOS/Management Action"
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.majorOSSoftwareUpdatePreferences.plist"
-dateMacBecameAwareOfUpdatesSeconds="$(defaults read $softwareUpdatePreferenceFile dateMacBecameAwareOfUpdatesSeconds)"
-wayOutsideGracePeriodAgeOutinSeconds="$(defaults read $softwareUpdatePreferenceFile wayOutsideGracePeriodAgeOutinSeconds)"
+dateMacBecameAwareOfUpdatesSeconds=$($plistBuddy -c "Print:dateMacBecameAwareOfUpdatesSeconds" "$softwareUpdatePreferenceFile")
+wayOutsideGracePeriodAgeOutinSeconds=$($plistBuddy -c "Print:wayOutsideGracePeriodAgeOutinSeconds" "$softwareUpdatePreferenceFile")
 
 # macOSVersionMarketingCompatible is the commerical version number of macOS (10.x, 11.x)
 # macOSVersionEpoch is the major version number and is meant to draw a line between Big Sur and all prior versions of macOS
@@ -69,7 +70,7 @@ macOSVersionMarketingCompatible="$(sw_vers -productVersion)"
 macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatible")"
 macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
 
-doNotDisturbAppBundleIDs=(
+declare -a doNotDisturbAppBundleIDs=(
   "us.zoom.xos"
   "com.microsoft.teams"
   "com.cisco.webexmeetingsapp"
@@ -79,8 +80,6 @@ doNotDisturbAppBundleIDs=(
   "com.microsoft.Powerpoint"
   "com.apple.FinalCut"
 )
-
-doNotDisturbAppBundleIDsArray=(${=doNotDisturbAppBundleIDs})
 
 if [[ "$customBrandingImagePath" != "" ]]; then
   dialogImagePath="$customBrandingImagePath"
@@ -137,7 +136,7 @@ if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
   exit 0
 fi
 
-for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDsArray[@]}; do
+for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDs[@]}; do
   frontAppASN="$(lsappinfo front)"
   frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
   if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]] && [[ "$respectDNDApplications" = "true" ]]; then

@@ -44,14 +44,16 @@
 ### Enter your organization's preference domain below
 
 companyPreferenceDomain=""
+softwareUpdatePreferenceFile="/Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist"
+plistBuddy="/usr/libexec/PlistBuddy"
 
 if [[ "$companyPreferenceDomain" = "" ]]; then
 	echo "No preference domain set, exiting with error"
 	exit 2
 fi
 
-if [[ $(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist dateMacBecameAwareOfUpdates) = "" ]]; then
+if [[ $($plistBuddy -c "Print:dateMacBecameAwareOfUpdates" "$softwareUpdatePreferenceFile") = "" ]]; then
 	echo "<result>None</result>"
 else
-	echo "<result>$(defaults read /Library/Preferences/$companyPreferenceDomain.SoftwareUpdatePreferences.plist dateMacBecameAwareOfUpdates)</result>"
+	echo "<result>$($plistBuddy -c 'Print:dateMacBecameAwareOfUpdates' "$softwareUpdatePreferenceFile")</result>"
 fi
