@@ -45,10 +45,10 @@ plistBuddy="/usr/libexec/PlistBuddy"
 preferenceDomain=$4 # Required
 macOSSoftwareUpdateGracePeriodinDays=$5 # Required
 macOSSoftwareUpdateAbsoluteDeadlineAfterGracePeriodinDays=$6 # Optional
-dateMacBecameAwareOfUpdates="$(/bin/date)"
+dateMacBecameAwareOfUpdates="$(/bin/date "+%F")"
 dateMacBecameAwareOfUpdatesNationalRepresentation="$(/bin/date "+%A, %B %e")"
 dateMacBecameAwareOfUpdatesSeconds="$(/bin/date +%s)"
-gracePeriodWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d)"
+gracePeriodWindowClosureDate="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%Y-%m-%d")"
 gracePeriodWindowClosureDateNationalRepresentation="$(/bin/date -v +"$macOSSoftwareUpdateGracePeriodinDays"d "+%A, %B %e")"
 softwareUpdatePreferenceFile="/Library/Preferences/$preferenceDomain.SoftwareUpdatePreferences.plist"
 softwareUpdatePreferenceFileVersion="2"
@@ -92,7 +92,16 @@ setSoftwareUpdateReleaseDate()
   fi
 }
 
-if [[ "$(softwareupdate --list --no-scan | grep -c '*')" -eq "0" ]]; then
+availableUpdateManifest=$(/usr/libexec/mdmclient AvailableOSUpdates)
+availableConfigDataUpdates=$(grep -c "IsConfigDataUpdate = 1" <<<$availableUpdateManifest)
+availableFirmwareUpdates=$(grep -c "IsFirmwareUpdate = 1" <<<$availableUpdateManifest)
+availableUpdateRequiresRestart=$(grep -c "RestartRequired = 1" <<<$availableUpdateManifest)
+availableRecommendedUpdates=$(grep -c "RestartRequired = 0" <<<$availableUpdateManifest)
+availableCriticalUpdates=$(grep -c "IsCritical = 1" <<<$availableUpdateManifest)
+numberofDeferredUpdates=$(grep -c "DeferredUntil" <<<$availableUpdateManifest)
+deferredUpdateAvailabilityDate=$(grep "DeferredUntil" <<<$availableUpdateManifest | awk '{print $3}' | sed 's/\"//')
+
+if [[ $availableUpdateRequiresRestart -eq "0" ]] && [[ $availableRecommendedUpdates -eq "0" ]]; then
   echo "Client seems to be up to date"
   if [[ -e "$softwareUpdatePreferenceFile" ]]; then
     defaults delete "$softwareUpdatePreferenceFile"

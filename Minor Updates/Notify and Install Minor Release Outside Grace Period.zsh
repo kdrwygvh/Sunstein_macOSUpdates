@@ -154,10 +154,16 @@ if [[ ! -f "$softwareUpdatePreferenceFile" ]]; then
   exit 0
 fi
 
-numberofAvailableUpdates=$(softwareupdate --list --no-scan | grep -c '*')
-numberofUpdatesRequringRestart=$(softwareupdate --list --no-scan | /usr/bin/grep -i -c 'restart')
+availableUpdateManifest=$(/usr/libexec/mdmclient AvailableOSUpdates)
+availableConfigDataUpdates=$(grep -c "IsConfigDataUpdate = 1" <<<$availableUpdateManifest)
+availableFirmwareUpdates=$(grep -c "IsFirmwareUpdate = 1" <<<$availableUpdateManifest)
+availableUpdateRequiresRestart=$(grep -c "RestartRequired = 1" <<<$availableUpdateManifest)
+availableRecommendedUpdates=$(grep -c "RestartRequired = 0" <<<$availableUpdateManifest)
+availableCriticalUpdates=$(grep -c "IsCritical = 1" <<<$availableUpdateManifest)
+numberofDeferredUpdates=$(grep -c "DeferredUntil" <<<$availableUpdateManifest)
+deferredUpdateAvailabilityDate=$(grep "DeferredUntil" <<<$availableUpdateManifest | awk '{print $3}' | sed 's/\"//')
 
-if [[ "$numberofAvailableUpdates" -eq "0" ]]; then
+if [[ $availableUpdateRequiresRestart -eq "0" ]] && [[ $availableRecommendedUpdates -eq "0" ]]; then
   echo "Client is up to date or has not yet identified needed updates, exiting"
   if [[ -e "$softwareUpdatePreferenceFile" ]]; then
   	defaults delete "$softwareUpdatePreferenceFile"
@@ -166,14 +172,14 @@ if [[ "$numberofAvailableUpdates" -eq "0" ]]; then
   fi
 fi
 
-if [[ "$numberofUpdatesRequringRestart" -eq "0" ]]; then
+if [[ "$availableRecommendedUpdates" -gt "0" ]]; then
   echo "No updates found which require a restart, but we'll run softwareupdate to install any other outstanding updates."
   softwareupdate --install --recommended --verbose
   exit 0
 fi
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, safe to perform all updates and restart now if required"
-  if [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
+  if [[ "$availableUpdateRequiresRestart" -ge "1" ]]; then
     echo "Updates found which require restart. Installing and restarting...but only on Intel based systems"
     if [[ "$(arch)" = "arm64" ]]; then
       echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"

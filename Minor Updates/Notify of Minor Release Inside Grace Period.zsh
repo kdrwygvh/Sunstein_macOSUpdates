@@ -123,7 +123,16 @@ if [[ $6 == "" ]]; then
   updateAttitude="passive"
 fi
 
-if [[ "$(softwareupdate --list --no-scan | grep -c '*')" -eq 0 ]]; then
+availableUpdateManifest=$(/usr/libexec/mdmclient AvailableOSUpdates)
+availableConfigDataUpdates=$(grep -c "IsConfigDataUpdate = 1" <<<$availableUpdateManifest)
+availableFirmwareUpdates=$(grep -c "IsFirmwareUpdate = 1" <<<$availableUpdateManifest)
+availableUpdateRequiresRestart=$(grep -c "RestartRequired = 1" <<<$availableUpdateManifest)
+availableRecommendedUpdates=$(grep -c "RestartRequired = 0" <<<$availableUpdateManifest)
+availableCriticalUpdates=$(grep -c "IsCritical = 1" <<<$availableUpdateManifest)
+numberofDeferredUpdates=$(grep -c "DeferredUntil" <<<$availableUpdateManifest)
+deferredUpdateAvailabilityDate=$(grep "DeferredUntil" <<<$availableUpdateManifest | awk '{print $3}' | sed 's/\"//')
+
+if [[ $availableUpdateRequiresRestart -eq "0" ]] && [[ $availableRecommendedUpdates -eq "0" ]]; then
   echo "Client is up to date, exiting"
   if [[ -e "$softwareUpdatePreferenceFile" ]]; then
   	defaults delete "$softwareUpdatePreferenceFile"
@@ -139,8 +148,7 @@ fi
 
 if [[ "$currentUser" = "root" ]]; then
   echo "User is not in session, not bothering with presenting the software update notification this time around but checking update attitude"
-  numberofUpdatesRequringRestart="$(softwareupdate --list --no-scan | /usr/bin/grep -i -c 'restart')"
-  if [[ "$updateAttitude" == "aggressive" && "$numberofUpdatesRequringRestart" -ge "1" ]]; then
+  if [[ "$updateAttitude" == "aggressive" && "$availableUpdateRequiresRestart" -ge "1" ]]; then
     echo "Aggressive attitude is set and user is not logged in, performing all updates and restarting now"
     if [[ "$(arch)" = "arm64" ]]; then
       echo "Command line updates are not supported on Apple Silicon, falling back to installation via MDM event"
@@ -149,7 +157,7 @@ if [[ "$currentUser" = "root" ]]; then
       softwareupdate --install --all --restart --verbose
       exit 0
     fi
-  elif [[ "$updateAttitude" == "passive" && "$numberofUpdatesRequringRestart" -ge "1" ]]; then
+  elif [[ "$updateAttitude" == "passive" && "$availableUpdateRequiresRestart" -ge "1" ]]; then
   	echo "Passive mode set, exiting"
   	exit 0
   else
