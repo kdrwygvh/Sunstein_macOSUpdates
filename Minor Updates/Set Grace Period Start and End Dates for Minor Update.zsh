@@ -79,9 +79,9 @@ setSoftwareUpdateReleaseDate()
   $plistBuddy -c "Add:macOSSoftwareUpdateGracePeriodinDays integer $macOSSoftwareUpdateGracePeriodinDays" "$softwareUpdatePreferenceFile"
   if [[ $($plistBuddy -c "Print:gracePeriodWindowCloseDate" "$softwareUpdatePreferenceFile") = "" ]]; then
     $plistBuddy -c "Add:softwareUpdatePreferenceFileVersion integer 2" "$softwareUpdatePreferenceFile"
-    $plistBuddy -c "Add:dateMacBecameAwareOfUpdates date $dateMacBecameAwareOfUpdates" "$softwareUpdatePreferenceFile"
+    $plistBuddy -c "Add:dateMacBecameAwareOfUpdates string $dateMacBecameAwareOfUpdates" "$softwareUpdatePreferenceFile"
     $plistBuddy -c "Add:dateMacBecameAwareOfUpdatesNationalRepresentation string $dateMacBecameAwareOfUpdatesNationalRepresentation" "$softwareUpdatePreferenceFile"
-    $plistBuddy -c "Add:gracePeriodWindowCloseDate date $gracePeriodWindowClosureDate" "$softwareUpdatePreferenceFile"
+    $plistBuddy -c "Add:gracePeriodWindowCloseDate string $gracePeriodWindowClosureDate" "$softwareUpdatePreferenceFile"
     $plistBuddy -c "Add:gracePeriodWindowCloseDateNationalRepresentation string $gracePeriodWindowClosureDateNationalRepresentation" "$softwareUpdatePreferenceFile"
     $plistBuddy -c "Add:dateMacBecameAwareOfUpdatesSeconds integer $dateMacBecameAwareOfUpdatesSeconds" "$softwareUpdatePreferenceFile"
     $plistBuddy -c "Add:wayOutsideGracePeriodDeadlineinDays integer $wayOutsideGracePeriodDeadlineinDays" "$softwareUpdatePreferenceFile"
