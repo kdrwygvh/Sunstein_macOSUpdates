@@ -67,12 +67,6 @@ if [[ $5 == "" ]]; then
   exit 2
 fi
 
-# if [[ $($plistBuddy -c 'Print:softwareUpdatePreferenceFileVersion' $softwareUpdatePreferenceFile) -lt "2" ]] && [[ -e "$softwareUpdatePreferenceFile" ]]; then
-#   echo "software update preference version is not correct, resetting"
-#   defaults delete "$softwareUpdatePreferenceFile"
-#   rm "$softwareUpdatePreferenceFile"
-# fi
-
 setSoftwareUpdateReleaseDate()
 
 {
