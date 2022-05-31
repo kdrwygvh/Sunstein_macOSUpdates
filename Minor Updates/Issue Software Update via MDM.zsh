@@ -1,79 +1,84 @@
 #!/bin/zsh
 
-# Title         :Issue Software Update via MDM.zsh
-# Description   :
-# Author        :John Hutchison
-# Date          :2021-07-22
-# Contact       :john@randm.ltd, john.hutchison@floatingorchard.com
-# Version       :1.0.2
-# Notes         :Added logic to check for Jamf Pro supervision status
+getJsonValue() {
+	# $1: JSON string OR file path to parse (tested to work with up to 1GB string and 2GB file).
+	# $2: JSON key path to look up (using dot or bracket notation).
+	printf '%s' "$1" | /usr/bin/osascript -l 'JavaScript' \
+		-e 'let json = $.NSString.alloc.initWithDataEncoding($.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile, $.NSUTF8StringEncoding)' \
+		-e 'if ($.NSFileManager.defaultManager.fileExistsAtPath(json)) json = $.NSString.stringWithContentsOfFileEncodingError(json, $.NSUTF8StringEncoding, ObjC.wrap())' \
+		-e "JSON.parse(json.js)$([ -n "${2%%[.[]*}" ] && echo '.')$2"
+}
 
-# The Clear BSD License
-#
-# Copyright (c) [2020] [John Hutchison of Russell & Manifold ltd.]
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted (subject to the limitations in the disclaimer
-# below) provided that the following conditions are met:
-#
-#      * Redistributions of source code must retain the above copyright notice,
-#      this list of conditions and the following disclaimer.
-#
-#      * Redistributions in binary form must reproduce the above copyright
-#      notice, this list of conditions and the following disclaimer in the
-#      documentation and/or other materials provided with the distribution.
-#
-#      * Neither the name of the copyright holder nor the names of its
-#      contributors may be used to endorse or promote products derived from this
-#      software without specific prior written permission.
-#
-# NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
-# THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
-# CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-# IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-
-# The API account to issue MDM commands must have the minimum Jamf Pro privileges;
-# Computer - Create Read Update
-# Jamf Pro Server Actions - Send Computer Remote Command to Download and Install macOS Update
+## BEGIN SHUI FUNCTION ##
+function shui {
+local version="20210622"
+: <<-EOL
+shui.min - a zsh/bash function to easily add Applescript user interaction to your script (https://github.com/brunerd/shui)
+Copyright (c) 2020 Joel Bruner
+MIT License
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+EOL
+#these GLOBAL vars are reset each time shui runs
+unset lastButton lastText lastChoice lastGaveUp lastCancel lastError lastResult lastPID
+[ "${shui_silentMode}" = "Y" -o "${silentMode}" = "Y" ] && return; [ "$(cut -d. -f1 <<< $(sw_vers -productVersion))" -eq 10 -a "$(cut -d. -f2 <<< $(sw_vers -productVersion))" -le 8 ] && echo "shui requires macOS 10.9 and above" >&2 && return 1; local defaultIcon="${shui_defaultIcon}";[ -n "${shui_defaultTitle}" ] && local defaultTitle="$(echo -e "${shui_defaultTitle}" | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')";[ -n "${shui_defaultOption}" ] && local defaultOption="$(echo -e "${shui_defaultOption}" | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')"; local timeoutSecondsAppleScript=${shui_timeoutDefault:-"133200"}; local defaultApplication="${shui_defaultApplication}"; local defaultColorRGB="${shui_defaultColor:-65535,65535,65535}"; local timeoutSecondsAppleScript=${timeoutDefault:-"133200"};local consoleUserID="$(stat -f %u /dev/console)";local consoleUser="$(stat -f %Su /dev/console)"; if [ -n "$ZSH_VERSION" ]; then set -y; elif [ -n "$BASH_VERSION" ]; then local array_offset="1"; unset OPTIND OPTARG; fi;local NL=$'\n';local asuserPrefix="launchctl asuser ${consoleUserID} sudo -u ${consoleUser}";if [ "$(cut -d. -f1 <<< $(sw_vers -productVersion))" -eq 10 -a "$(cut -d. -f2 <<< $(sw_vers -productVersion))" -le 10 ]; then if [ "${USER}" = "${consoleUser}" ]; then unset asuserPrefix; elif [ "${USER}" != "${consoleUser}" -a "$UID" -ne 0 -a "${SUDO_USER}" != "${consoleUser}" ]; then echo "Script user ($USER) ≠ console user ($consoleUser), please run as root on 10.10 and 10.9" >&2;return 1;fi;fi;local APPLESCRIPT
+read -r -d '' helpText <<'EOT'
+shui - add Applescript user interaction to your shell script (https://github.com/brunerd/shui)\n\nUsage:\nshui [<UI Type>] -p "<prompt text>" \n\nUI Types:\nalert: alert with icon of the calling appication (use -a), prompt (-p) is bold, message text (-P) is smaller, can set level (-L) to critical\napplication: presents list of Launch Services registered applicatins can specify -m for multiple\nbutton (default): button based reply, use -b to change button names (max 3), defaults to "Cancel,OK" like Applescript does\ncolor: no options, presents color picker and returns "R,G,B" with individual values (0-65535)\nfile: pick one file or multiple (-m), -d for default folder, -P to specify preferred file extensions or UTIs, -h hidden items, -s show bundle contents\nfolder: pick one file or multiple (-m), -d for default folder, -P to specify preferred file extensions, -h hidden items, -s show bundle contents\nlist: pick one or mutiple (-m) items from a list of choices, use -D for custom delimiter (comma default)\ntext: like button but with a single line text entry box, set pre-filled text with -P, hidden text with -h\nurl: returns a URL, default is file servers, use -S to set the kind of server to look for, valid value listed below\n\nRequired:\n-p "prompt text"\talert/button/file/folder/list: the text prompt presented to the user, required for all type (except color)\n\nOptions (begins with UI type(s) which apply or "all"):\n\n-a "<application>"\tall (except filename): specify the application that will present the Applescript dialog, alert will have app icon and block app\n\n-b "<button>;...;..."\tbutton: max 3 button names, comma or semi-colon delimited (if commas AND semi-colons are present, semis "win") \n\t\t\t\t\t\tif no buttons specified it defaults to the standard Applescript "Cancel,OK"\n-b "<OK>,[<Cancel>]"\tlist: max 2 button names, comma delimited, first is the OK button name, second is Cancel button name (optional)\n\n-B "n"\t\t\tall: beep n number of times\n\n-c "name/number"\tbutton: specify the cancel button by name or number (use with alert and buttons named "Cancel")\n\n-d "name/number"\tbutton: default button name or number (0 will suppress Applescript OK button default if -b not specified)\n-d "<Folder Path>"\tfile/folder: default location (Unix Path), using ~ will resolve to the console user's home folder\n\n-D "<delimiter>"\tlist: Delimiter for -l list items, can specify literal character like $'\\n' or use these two named shortcuts "LF" "IFS"\n\n-e \t\t\tlist: allow empty selection\n\n-g "seconds"\t\talert/button: give-up timeout in seconds (dismisses windows and moves on)\n\n-h\t\t\ttext: hidden text entry (dots)\n-h\t\t\tfile/folder: show hidden files in picker\n\n-i "<path>"\t\tbutton: path to icon file or application bundle (Icon^M first, then Info.plist)\n\n-l "item,item,..."\tlist: items for list, comma delimited is default unless newline is detected (change delimiter with -D)\n\n-L "<level>"\t\talert: default is ‌"informational"/"‌warning" (same), "critical" adds a caution sign over the calling app (-a) icon\n\n-m\t\t\tapplication/file/folder/list: allow multiple selections\n\n-n\t\t\talert/button: non-Blocking window, spawns to a background and moves on, response is not captured, one button maximum\n \t\t\tNote: If this is NOT the last alert window it is advisable to use a giveup (-g) value, additional dialogs will occlude previous ones (use -X to clear)\n\n-N\t\t\talert/button: same as (-n) non-blocking window except button 1 is default\n\n-o\t\t\tall: output shell arguments, Applescript code and raw Results and Errors\n\n-P "message text"\talert: "parenthetical" message text below the bold prompt text\n-P "<R>,<G>,<B>"\tcolor: pre-chosen RGB color values 0-65535\n-P "filename"\t\tfilename: pre-filled file name (default folder set with -d)\n-P "extension,UTI,..."\tfile: "preferred" file extensions/UTIs available to choose in picker\n-P "item,item..."\tlist: pre-chosen items, default delimiter is comma unless a newline is present or can be set with -D\n-P "pre-fill text"\ttext: pre-filled text (may be hidden with -h)\n\n-S "<Service>"\t\turl: look for specific services, useful values are: "file" (default) and "web" \n\t\t\tLess useful but still valid values are: "ftp", "media", "telnet", "news", "remote" (applications), and "directory" (services)\n\n-s\t\t\tfile/folder: show package/bundle contents (as a folder basically)\n\n-t "Title text"\t\tbutton/list/text: window title\n\n-v\t\t\tall: output results in format suitable for initializing shell variables\n-V\t\t\tall: output results in format suitable for initializing shell variables plus Applescript and raw Result/Error output from osascript (-o)\n\n-X\t\t\talert/button: kill ALL osascript and "System Events" processes, like orphaned non-Blocking (background) windows. Use with CAUTION!\n-x\t\t\talert/button: kill only child osascript processes belonging to the running script (embedded usage only)\n\nshui sets these GLOBAL variables within the script's running context (use -v to output these if shui is standalone/non-embedded):\n\tlastButton - value of button from button, text, and list replies\n\tlastText   - Text string from text reply\n\tlastChoice - File or Folder Unix path from files/filename/folders\n\tlastGaveUp - true or false, button and text reply types only, when a give up (-g) value is specified\n\tlastCancel - true or false, since Cancel produces an error and no result this helps determine if clicked\n\tlastResult - full Result output (stdout) from osascript that is parsed into the above values\n\tlastError  - full Error (stderr) output from osascript\n\tlastPID    - the child PID of a non-blocking (-n) alert or button (excluding -a invoked)\n\nshui will use these GLOBAL variables set in your script or exported in your running shell\n\tshui_defaultIcon - icon path for button UIs\n\tshui_defaultTitle - title string for button, text, and list UIs\n\tshui_defaultOption - button by name or number or file/folder by path\n\tshui_defaultColor - default color (picker) UI "<R>,<G>,<B>" 0-65535
+EOT
+if [ -z "${1}" ]; then echo -e "No arguments given!\nFor usage: shui help\nFor examples: shui demo" >&2; return 1;elif [ "${1}" = "help" ]; then echo "${helpText}" >&2;return 0;elif [ "${1}" = "version" ]; then echo "${version}"; return 0;elif [ "$(cut -c1-1 <<< ${1})" = "-" ]; then local uiType="button";else local uiType="$(tr "[[:upper:]]" "[[:lower:]]" <<< "${1}")";shift 1;fi;local option;while getopts ":B:L:t:g:P:p:i:b:c:D:S:d:l:a:nehmNsovVXx" option; do case "${option}" in 'a')local applicationNameArg="${OPTARG}";;'b')local buttonListArgs="$(echo -e "${OPTARG}" | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')";;'B')local beep_AS="beep ${OPTARG}";;'c')local cancelButton="$(echo -e "${OPTARG}" | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')";; 'd')local defaultOption="$(echo -e "${OPTARG}" | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')";;'D')local listDelimiter="${OPTARG}";;'e')local withEmpty_AS="with empty selection allowed";;'g')local giveupSeconds="${OPTARG}";;'h')local option_H_flag="1";;'i')local iconArgument="${OPTARG}";;'L')local alertLevel_AS="as ${OPTARG}";;'l')local listItems="$(echo -e "${OPTARG}" | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')";;'m')local withMultiple_AS="with multiple selections allowed";;'n')local nonBlockingFlag="1";;'N')local nonBlockingFlag="1";local defaultOption="1";;'o')local outputFlag="1";;'p')local promptString="$(echo -e "${OPTARG}" | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')"; local withPrompt_AS="with prompt \"${promptString}\"";;'P')local preFillString="$(echo -e "${OPTARG}" | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')";;'S')local serviceArgument="${OPTARG}";;'s')local showingPackage_AS="with showing package contents";;'t')local titleString="$(echo -e "${OPTARG}" | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')";;'v')local variableFlag="1";;'V')local variableFlag="1";local outputFlag="1";local variableFlagPlus="1";;'X')[ -z "${killChildProcsOnly}" ] && local killAllProcs="1";;'x')[ -z "${killAllProcs}" ] && local killChildProcsOnly="1";;esac;done;if [ -z "${promptString}" -a "${uiType}" != "color" -a "${uiType}" != "url" ]; then echo "Please provide prompt text in the form of: shui <UI Type> -p \"<prompt text>\"\nFor usage: shui help\nFor examples: shui demo" >&2;return;fi;if [ -z "${applicationNameArg}" -a -n "${defaultApplication}" ]; then local applicationNameArg="${defaultApplication}"; fi; if [ -z "${iconArgument}" -a -n "${defaultIcon}" ]; then local iconArgument="${defaultIcon}"; fi;if [ "${uiType}" = "color" -a -z "$applicationNameArg" ]; then local applicationNameArg="System Events"; fi;if [ -n "${applicationNameArg}" ]; then local tellApp_AS="tell application \"${applicationNameArg}\"";local endTell_AS="end tell";fi;[ -z "${titleString}" -a -n "${defaultTitle}" ] && local titleString="${defaultTitle}";case "${uiType}" in "list") local listItems_AS preChosenList_AS listArray preChosenArray button_OK button_cancel;if [ -z "${listItems}" ]; then echo -e "No data for list!\nSpecify list data with: -l \"<data>\"\nDefault delimiter comma (,) can be changed with -D \"<char>\"";return 1;fi;[ -n "$titleString" ] && local title_AS="with title \"$titleString\"";if [ -n "${buttonListArgs}" ]; then if [ "$(grep -c $'\n' <<< "${buttonListArgs}")" -ge 2 ]; then local button_OK="$(sed -n 1p <<< "${buttonListArgs}")";local button_cancel="$(sed -n 2p <<< "${buttonListArgs}")";else [ "$(grep -c $';' <<< "${buttonListArgs}")" -ge 1 ] && local buttonDelimiter=';' || local buttonDelimiter=',';local button_OK="$(cut -d "${buttonDelimiter}" -f1 <<< "${buttonListArgs}")";local button_cancel="$(cut -d "${buttonDelimiter}" -f2 <<< "${buttonListArgs}")";[ "${button_cancel}" = "${button_OK}" ] && local button_cancel="";fi;fi;if [ "${listDelimiter}" = "IFS" ]; then IFS=$' \n\t' listArray=( ${listItems} ); elif [ "${listDelimiter}" = "LF" ]; then IFS=$'\n' listArray=( ${listItems} ); elif [ -n "${listDelimiter}" ]; then IFS=${listDelimiter} listArray=( ${listItems} );else if [ "$(grep -c $'\n' <<< "${listItems}")" -ge 2 ]; then IFS=$'\n' listArray=( ${listItems} );else IFS=, listArray=( ${listItems} );fi;fi;for (( j=$(( 1 - ${array_offset:-0} )); j <= $(( ${#listArray[@]} - ${array_offset:-0} )); j++ )); do [ -z "$listItems_AS" ] && listItems_AS+="\"${listArray[$j]}\"" || listItems_AS+=", \"${listArray[$j]}\"";done;if [ -n "$preFillString" ]; then if [ "${listDelimiter}" = "IFS" ]; then IFS=$' \n\t' preChosenArray=( ${preFillString} );elif [ "${listDelimiter}" = "LF" ]; then IFS=$'\n' preChosenArray=( ${preFillString} ); elif [ -n "${listDelimiter}" ]; then IFS=${listDelimiter} preChosenArray=( ${preFillString} ); else if [ "$(grep -c $'\n' <<< "${preFillString}")" -ge 2 ]; then IFS=$'\n' preChosenArray=( ${preFillString} );else IFS=, preChosenArray=( ${preFillString} );fi;fi;for (( j=$(( 1 - ${array_offset:-0} )); j <= $(( ${#preChosenArray[@]} - ${array_offset:-0} )); j++ )); do [ -z "${preChosenList_AS}" ] && preChosenList_AS+="\"${preChosenArray[$j]}\"" || preChosenList_AS+=", \"${preChosenArray[$j]}\"";[ -z "${withMultiple_AS}" ] && break;done;local defaultItems_AS="default items {${preChosenList_AS}}";fi
+read -r -d '' APPLESCRIPT <<-EOF
+${tellApp_AS}${NL}activate${NL}${beep_AS}${NL}with timeout of $timeoutSecondsAppleScript seconds${NL}set dialogAnswer to choose from list {${listItems_AS}} ${withMultiple_AS} ${title_AS} ${withPrompt_AS} ${defaultItems_AS} ${withEmpty_AS} OK button name {"${button_OK:-OK}"} cancel button name {"${button_cancel:-Cancel}"}${NL}if class of dialogAnswer is boolean then${NL}error number -128${NL}end if${NL}if (count of dialogAnswer) is greater than 1 then${NL}set dialogAnswers to ""${NL}repeat with choice from 1 to count of dialogAnswer${NL}set theCurrentItem to item choice of dialogAnswer${NL}set dialogAnswers to dialogAnswers & theCurrentItem & "\n"${NL}end repeat${NL}else${NL}return dialogAnswer as string${NL}end if${NL}end timeout${NL}${endTell_AS}
+EOF
+;;"file"*|"folder")[ "${option_H_flag:=0}" -eq 1 ] && local withInvisibles_AS="with invisibles";if [ -d "${defaultOption}" ]; then local folderPath="${defaultOption}";elif [ "${defaultOption:0:1}" = '~' ]; then local homeFolder="$(dscl . -read /Users/$consoleUser NFSHomeDirectory | awk -F ": " '{print $NF}')"; local folderPath="${homeFolder}${defaultOption:1}";elif [ -n "${ZSH_VERSION}" ]; then local folderPath="$(dirname "${ZSH_ARGZERO:=${${funcfiletrace[-1]}[(ws/:/)1]}}")";elif [ -e "${0}" ]; then local folderPath="$(dirname "$0")";else local folderPath="$(pwd)";fi;case "${uiType}" in "filename")if [ -n "${preFillString}" ]; then local defaultNameString="default name \"$preFillString\"";fi;
+read -r -d '' APPLESCRIPT <<-EOF
+${beep_AS}${NL}get POSIX path of (choose file name ${defaultNameString} ${withPrompt_AS} default location POSIX file "$folderPath")
+EOF
+;;"file"|"folder")if [ -n "${preFillString}" ]; then local choice;local fileTypeList;IFS=,;for choice in $preFillString; do [ -z "$fileTypeList" ] && fileTypeList=\"$choice\" || fileTypeList+=,\ \"$choice\";done;IFS=$' \n\t';local ofType_AS="of type {$fileTypeList}";fi;
+read -r -d '' APPLESCRIPT <<-EOF
+${tellApp_AS}${NL}activate${NL}${beep_AS}${NL}with timeout of $timeoutSecondsAppleScript seconds${NL}set dialogAnswer to choose ${uiType} ${withInvisibles_AS} ${withPrompt_AS} ${ofType_AS} ${withMultiple_AS} default location POSIX file "${folderPath}" ${showingPackage_AS}${NL}if class of dialogAnswer is list then${NL}set dialogAnswers to ""${NL}repeat with thisAlias from 1 to count of dialogAnswer${NL}set dialogAnswers to dialogAnswers & POSIX path of item thisAlias of dialogAnswer & "\n"${NL}end repeat${NL}else if class of dialogAnswer is alias then${NL}set dialogAnswer to POSIX path of dialogAnswer${NL}end if${NL}end timeout${NL}${endTell_AS}
+EOF
+;;esac;;"application"*)read -r -d '' APPLESCRIPT <<-EOF
+${tellApp_AS}${NL}activate${NL}${beep_AS}${NL}with timeout of $timeoutSecondsAppleScript seconds${NL}set dialogAnswer to choose application ${title_AS} ${withPrompt_AS} ${withMultiple_AS} as alias${NL}if class of dialogAnswer is list then${NL}set dialogAnswers to ""${NL}repeat with thisAlias from 1 to count of dialogAnswer${NL}set dialogAnswers to dialogAnswers & POSIX path of item thisAlias of dialogAnswer & "\n"${NL}end repeat${NL}else if class of dialogAnswer is alias then${NL}set dialogAnswer to POSIX path of dialogAnswer${NL}end if${NL}end timeout${NL}${endTell_AS}
+EOF
+;;"color")if [ -n "${preFillString}" ] ; then local R="$(cut -d, -f1 <<< "${preFillString}")";local G="$(cut -d, -f2 <<< "${preFillString}")";local B="$(cut -d, -f3 <<< "${preFillString}")";if [ "${R}" -ge 0 -a "${R}" -le 65535 -a "${G}" -ge 0 -a "${G}" -le 65535 -a "${B}" -ge 0 -a "${B}" -le 65535 ]; then defaultColor_AS="default color {${preFillString}}";fi;elif [ -n "${defaultColorRGB}" ]; then defaultColor_AS="default color {${defaultColorRGB}}";fi;
+read -r -d '' APPLESCRIPT <<-EOF
+${tellApp_AS}${NL}activate${NL}${beep_AS}${NL}with timeout of $timeoutSecondsAppleScript seconds${NL}set theColor to choose color ${defaultColor_AS}${NL}end timeout${NL}${endTell_AS}
+EOF
+;;"url")if [ -n "${serviceArgument}" ]; then case "${serviceArgument}" in "file") local servicename_AS="File servers";;"web") local servicename_AS="Web servers";;"ftp") local servicename_AS="FTP Servers";;"media") local servicename_AS="Media servers";;"telnet") local servicename_AS="Telnet hosts";;"news") local servicename_AS="News servers";;"remote") local servicename_AS="Remote applications";;"directory") local servicename_AS="Directory services";;esac;[ -n "${servicename_AS}" ] && showingService_AS="showing ${servicename_AS}";fi
+read -r -d '' APPLESCRIPT <<-EOF
+${tellApp_AS}${NL}activate${NL}${beep_AS}${NL}with timeout of $timeoutSecondsAppleScript seconds${NL}choose URL ${showingService_AS}${NL}end timeout${NL}${endTell_AS}
+EOF
+;;"alert"|"button"|"text"|*)case "${uiType}" in "alert")local windowType="alert";[ -n "${preFillString}" ] && local message_AS="message \"${preFillString}\"";;"button"|"text")local windowType="dialog";unset alertLevel_AS;[ -n "$titleString" ] && local title_AS="with title \"$titleString\"";;*)echo -e "Unknown UI Type: \"${uiType}\"\nFor usage: shui help\nFor examples: shui demo" >&2;return 1;;esac;[ -z "${nonBlockingFlag}" ] && local buttonCountLimit=3 || local buttonCountLimit=1;if [ -z "$buttonListArgs" -a -n "${nonBlockingFlag}" ]; then local buttonListArgs="OK";fi;if [ "$(grep -c $'\n' <<< "$buttonListArgs")" -ge 2 ]; then IFS=$'\n';elif [ "$(grep -c ';' <<< "$buttonListArgs")" -ge 1 ]; then IFS=$';';else IFS=,;fi;local button buttonListItems buttonCount;for button in ${buttonListArgs}; do [ -z "$button" ] && continue;button="$(sed "s/^[ ]*//;s/[ ]*$//" <<< "$button" )";[ -z "$buttonListItems" ] && buttonListItems=\"${button}\" || buttonListItems+=,\ \"${button}\";let $((buttonCount++));[ "${buttonCount:=1}" -ge "${buttonCountLimit}" ] && break;done;IFS=$' \n\t';[ -n "${buttonListItems}" ] && buttons_AS="buttons {${buttonListItems}}";if [ -n "${defaultOption}" -a "${defaultOption}" = "$(bc 2>/dev/null <<< "${defaultOption}")" ]; then if [ "${defaultOption}" -ge 1 -a "${defaultOption}" -le "${buttonCount}" ]; then local defaultButton_AS="default button ${defaultOption}"; fi;elif [ -n "${defaultOption}" -a -n "$(grep -w "${defaultOption}" <<< "${buttonListItems}")" ]; then local defaultButton_AS="default button \"${defaultOption}\"";fi;if [ -n "${cancelButton}" -a "${cancelButton}" = "$(bc 2>/dev/null <<< "${cancelButton}")" ]; then if [ "${cancelButton}" -ge 1 -a "${cancelButton}" -le "${buttonCount}" ]; then local cancelButton_AS="cancel button ${cancelButton}";fi;elif [ -n "${cancelButton}" -a -n "$(grep -w "${cancelButton}" <<< "${buttonListArgs}")" ]; then local cancelButton_AS="cancel button \"${cancelButton}\"";fi;if [ -f "${iconArgument}" -a "${uiType}" != "alert" ]; then local withIcon_AS="with icon file (POSIX file \"${iconArgument}\")";elif [ ! -f "${iconArgument}" -a "${uiType}" != "alert" ]; then case "${iconArgument}" in "stop"|"0")if [ -z "${applicationNameArg}" -o "${applicationNameArg}" = "System Events" ]; then local alertIconUnixPath="/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/AlertStopIcon.icns"; else local alertIconName="stop";fi;;"caution"|"2")if [ -z "${applicationNameArg}" -o "${applicationNameArg}" = "System Events" ]; then local alertIconUnixPath="/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/AlertCautionIcon.icns"; [ ! -f "${alertIconUnixPath}" ] && alertIconUnixPath="/System/Library/CoreServices/Problem Reporter.app/Contents/Resources/ProblemReporter.icns";else local alertIconName="caution";fi;;"note"|"1")if [ -z "${applicationNameArg}" -o "${applicationNameArg}" = "System Events" ]; then local alertIconUnixPath="/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/AlertNoteIcon.icns";else local alertIconName="note";fi;;*)if [ -f "${iconArgument}/Icon"$'\r' ]; then local tempIcon="/tmp/shui_icon-${RANDOM}.icns"; local resourceHexString="$(xattr -p com.apple.ResourceFork "${iconArgument}/Icon"$'\r')";[ -n "${resourceHexString}" ] && xxd -r -p - <<< "${resourceHexString:780}" > "${tempIcon}";if [ -s "${tempIcon}" ] && [ -z "$(grep ": data" <<< "$(file "${tempIcon}")")" ]; then local alertIconUnixPath="${tempIcon}"; fi;fi;if [ -f "${iconArgument}"/Contents/Info.plist -a -z "${alertIconUnixPath}" ]; then local bundleIconFileName="$(defaults read "${iconArgument}"/Contents/Info.plist CFBundleIconFile 2>/dev/null)"; [ -z "${bundleIconFileName}" ] && bundleIconFileName="$(defaults read "${iconArgument}"/Contents/Info.plist CFBundleIconName 2>/dev/null)"; [ "${bundleIconFileName}" = "${bundleIconFileName/.icns/}" ] && bundleIconFileName="${bundleIconFileName}".icns;local bundleIconPath="${iconArgument}"/Contents/Resources/"${bundleIconFileName}";if [ -f "${bundleIconPath}" ]; then local alertIconUnixPath="${bundleIconPath}";else local alertIconUnixPath="${defaultIcon}";fi;fi;;esac;if [ -f "${alertIconUnixPath}" ]; then local withIcon_AS="with icon file (POSIX file \"${alertIconUnixPath}\")";elif [ -n "${alertIconName}" ]; then local withIcon_AS="with icon ${alertIconName}";fi;fi;[ "${option_H_flag:=0}" -eq 1 ] && local withHiddenAnswer_AS="with hidden answer";if [ -n "${nonBlockingFlag}" -a "${uiType}" = "text" ]; then unset nonBlockingFlag;fi;if [ "${uiType}" = "text" ]; then local defaultAnswer_AS="default answer \"$preFillString\"";fi;if [ -z "${iconArgument}" -a -n "${defaultIcon}" ]; then local iconArgument="${defaultIcon}";fi;if [ "${iconArgument:0:1}" = '~' ]; then local homeFolder="$(dscl . -read /Users/$consoleUser NFSHomeDirectory | awk -F ": " '{print $NF}')"; local iconArgument="${homeFolder}${iconArgument:1}";fi;[ -n "${giveupSeconds}" ] && local giveup_AS="giving up after \"$giveupSeconds\"";if [ -n "${nonBlockingFlag}" ]; then
+read -r -d '' APPLESCRIPT <<-EOF
+${tellApp_AS}${NL}activate${NL}${beep_AS}${NL}with timeout of $timeoutSecondsAppleScript seconds${NL}set dialogAnswer to display ${windowType} "${promptString}" ${alertLevel_AS} ${message_AS} ${title_AS} ${withIcon_AS} ${buttons_AS} ${giveup_AS} ${defaultButton_AS} ${cancelButton_AS}${NL}end timeout${NL}${endTell_AS}
+EOF
+else read -r -d '' APPLESCRIPT <<-EOF
+${tellApp_AS}${NL}activate${NL}${beep_AS}${NL}with timeout of $timeoutSecondsAppleScript seconds${NL}set dialogAnswer to display ${windowType} "${promptString}" ${alertLevel_AS} ${message_AS} ${defaultAnswer_AS} ${withHiddenAnswer_AS} ${title_AS} ${withIcon_AS} ${buttons_AS} ${giveup_AS} ${defaultButton_AS} ${cancelButton_AS}${NL}end timeout${NL}${endTell_AS}
+EOF
+fi;;esac;if [ -n "$outputFlag" ]; then local a invocationQuoted; if [ -n "$ZSH_VERSION" ]; then for ((a=1; a <= ${#argv[@]}; a++ )); do [ "${argv[$a]:0:1}" = '-' ] && invocationQuoted+="${argv[$a]} " || invocationQuoted+="'${argv[$a]}' "; done; elif [ -n "$BASH_VERSION" ]; then if [ "${BASH_ARGC:-0}" -eq 1 ]; then local invocationQuoted="$@"; else for ((a=$((${BASH_ARGC:-0}-2)); a >= 0; a-- )); do [ "${BASH_ARGV[$a]:0:1}" = '-' ] && invocationQuoted+="${BASH_ARGV[$a]} " || invocationQuoted+="'${BASH_ARGV[$a]}' ";done;fi;fi;echo -e "Arguments:\n${uiType} ${invocationQuoted}\n" >&2;fi;[ -n "$outputFlag" ] && (echo "Applescript:" >&2; cat <<< "$APPLESCRIPT" | tr -s ' ' | sed '/^$/d' >&2; echo >&2);if [ -n "${killAllProcs}" ]; then local sysEventsPID osascriptPID;for sysEventsPID in $(pgrep System\ Events); do eval ${asuserPrefix} kill -9 "${sysEventsPID}";done;for osascriptPID in $(pgrep osascript); do eval ${asuserPrefix} kill -9 "${osascriptPID}";done;fi;if [ -n "${killChildProcsOnly}" ]; then local sysEventsPID osascriptPID childPID; local childPIDs="$(pgrep -P $$)"; for childPID in $(pgrep -P $$); do local grandChildPID="$(pgrep -P $childPID)";local grandChildPIDString="$(ps ${grandChildPID} | tail -n +2)";if grep -q "osascript$" <<< "${grandChildPIDString}"; then if grep -q "sudo$" <<< "$(pgrep -laP $childPID)"; then local childPIDToKill="$(pgrep -P $grandChildPID)"; else local childPIDToKill="${grandChildPID}"; fi;fi;[ -n "${childPIDToKill}" ] && eval ${asuserPrefix} kill -9 "${childPIDToKill}";done;fi;if [ -z "${nonBlockingFlag}" ]; then local tempStdErrFile="/tmp/shuiError-$$-${RANDOM}.txt";lastResult="$(eval ${asuserPrefix} /usr/bin/osascript 2>${tempStdErrFile} <<< "$APPLESCRIPT")";lastError="$(< "${tempStdErrFile}")";rm "${tempStdErrFile}";[ $(( $(wc -l <<< "${lastError}") )) -gt 1 ] && local lastError_escaped="$(sed -e 's/\\/\\\\/g' -e :a -e N -e '$!ba' -e 's/\n/\\n/g' <<< "${lastError}")" || local lastError_escaped="$(sed -e 's/\\/\\\\/g' <<< "${lastError}")";lastError_escaped="$(sed -e $'s/\r/\\\\r/g' -e $'s/\t/\\\\t/g' -e $'s/\b/\\\\b/g' -e $'s/\f/\\\\f/g' -e $'s/\v/\\\\v/g' -e $'s/\'/\\\\\'/g' <<< "${lastError_escaped}")";else { ( eval ${asuserPrefix} /usr/bin/osascript &>/dev/null <<< "$APPLESCRIPT"; [ -e "${tempIcon}" ] && rm -f "${tempIcon}" ) & };local childPID=$!;sleep .2; local grandChildPID="$(pgrep -P ${childPID})";if [ -n "${grandChildPID}" -a -z "${tellApp_AS}" ]; then if grep -q "sudo$" <<< "$(pgrep -laP $childPID)"; then lastPID="$(pgrep -P $grandChildPID)"; else lastPID="${grandChildPID}"; fi;fi;fi;if [ -n "${lastResult}" ]; then [ $(( $(wc -l <<< "${lastResult}") )) -gt 1 ] && local lastResult_escaped="$(sed -e 's/\\/\\\\/g' -e :a -e N -e '$!ba' -e 's/\n/\\n/g' <<< "${lastResult}")" || local lastResult_escaped="$(sed -e 's/\\/\\\\/g' <<< "${lastResult}")";lastResult_escaped="$(sed -e $'s/\r/\\\\r/g' -e $'s/\t/\\\\t/g' -e $'s/\b/\\\\b/g' -e $'s/\f/\\\\f/g' -e $'s/\v/\\\\v/g' -e $'s/\'/\\\\\'/g' <<< "${lastResult_escaped}")";local lastResultFragment_escaped="${lastResult_escaped}";case "${uiType}" in "alert"|"button"|"text") if [ -n "${giveup_AS}" ]; then if grep -q "gave up:true$" <<< "${lastResultFragment_escaped}"; then lastGaveUp="true";else lastGaveUp="false";fi;lastResultFragment_escaped=$(sed -e 's/, gave up:true$//' -e 's/, gave up:false$//' <<< "${lastResultFragment_escaped}");fi;local lastButton_escaped="$(awk -F '^button returned:|, text returned:' '{print $2}' <<< "${lastResultFragment_escaped}")";lastCancel="false";eval lastButton=\$\'"${lastButton_escaped}"\';lastResultFragment_escaped="$(sed -e 's/^button returned:'"${lastButton_escaped//\\/\\\\}"'//' <<< "${lastResultFragment_escaped}")";if grep -q "^, text returned:" <<< "${lastResultFragment_escaped}"; then local lastText_escaped="$(sed -e 's/^, text returned://' <<< "${lastResultFragment_escaped}")";eval lastText=\$\'"${lastText_escaped}"\';fi;;"file"*|"folder"|"application"|"color"|"url"|*) lastChoice="${lastResult}";[ $(( $(wc -l <<< "${lastChoice}") )) -gt 1 ] && local lastChoice_escaped="$(sed -e 's/\\/\\\\/g' -e :a -e N -e '$!ba' -e 's/\n/\\n/g' <<< "${lastChoice}")" || local lastChoice_escaped="$(sed -e 's/\\/\\\\/g' <<< "${lastChoice}")";lastChoice_escaped="$(sed -e $'s/\r/\\\\r/g' -e $'s/\t/\\\\t/g' -e $'s/\b/\\\\b/g' -e $'s/\f/\\\\f/g' -e $'s/\v/\\\\v/g' -e $'s/\'/\\\\\'/g' <<< "${lastChoice_escaped}")";lastCancel="false";;esac;elif [ "${uiType}" = "url" -a -z "${lastError}" ]; then lastCancel="false";elif [ -z "${nonBlockingFlag}" ]; then lastCancel="true";fi;[ -e "${tempIcon}" -a -z "${nonBlockingFlag}" ] && rm -f "${tempIcon}";if [ -n "${outputFlag}" -o -n "${variableFlagPlus}" ]; then printf "Result:\n%s\n\n" "${lastResult}" >&2;printf "Error:\n%s\n\n" "${lastError}" >&2;fi;if [ -n "${variableFlag}" ]; then /bin/echo "lastButton=\$'${lastButton_escaped}'";/bin/echo "lastText=\$'${lastText_escaped}'";/bin/echo "lastChoice=\$'${lastChoice_escaped}'";/bin/echo "lastGaveUp='${lastGaveUp}'";/bin/echo "lastCancel='${lastCancel}'";/bin/echo "lastResult=\$'${lastResult_escaped}'";/bin/echo "lastError=\$'${lastError_escaped}'";/bin/echo "lastPID='${lastPID}'";fi;[ -n "${lastError}" -o "${lastCancel}" = "true" ] && return 1
+}
+## END SHUI FUNCTION ##
 
 plistBuddy="/usr/libexec/PlistBuddy"
 jamfAPIAccount="$4" # Required
 jamfAPIPassword="$5" # Required
-logoPath="$6" # Optional
-respectDNDApplications=$7 # Required
-hardwareUUID="$(system_profiler SPHardwareDataType | grep "Hardware UUID" | awk '{print $3}')"
+performMajorOSUpgradeViaMDM="$6"
+administratorChoseForceRestart="$7" # true/false
+jamfAuthorizationBase64=$(printf "$jamfAPIAccount:$jamfAPIPassword" | iconv --to-code ISO-8859-1 | /usr/bin/base64 --input -)
+hardwareUUID=$(system_profiler SPHardwareDataType | grep "Hardware UUID" | awk '{print $3}')
 currentUser=$(/bin/ls -l /dev/console | /usr/bin/awk '{print $3}')
 currentUserUID=$(/usr/bin/id -u "$currentUser")
 currentUserHomeDirectoryPath="$(dscl . -read /Users/$currentUser NFSHomeDirectory | awk -F ': ' '{print $2}')"
-jamfManagementURL=$($plistBuddy -c "Print:jss_url" /Library/Preferences/com.jamfsoftware.jamf)
+macOSVersionMarketingCompatible="$(sw_vers -productVersion)"
+macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatible")"
+macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
+jamfManagementURL=$($plistBuddy -c "Print:jss_url" /Library/Preferences/com.jamfsoftware.jamf.plist)
+jamfAuthorizationTokenJSON=$(curl -s -f -X "POST" "$jamfManagementURL"uapi/auth/tokens \
+  -H "Authorization: Basic $jamfAuthorizationBase64" \
+  -H 'Cache-Control: no-cache')
+jamfAuthorizationToken=$(getJsonValue $jamfAuthorizationTokenJSON .token)
 
-declare -a doNotDisturbAppBundleIDs=(
-  "us.zoom.xos"
-  "com.microsoft.teams"
-  "com.cisco.webexmeetingsapp"
-  "com.webex.meetingmanager"
-  "com.apple.FaceTime"
-  "com.apple.iWork.Keynote"
-  "com.microsoft.Powerpoint"
-  "com.apple.FinalCut"
-  "com.apple.TV"
-)
-
-if [[ "$currentUser" = "root" ]]; then
-  echo "User is not logged into GUI, console, or remote session"
-  userLoggedInStatus=0
-else
-  userLoggedInStatus=1
-fi
 
 if [[ "$jamfAPIAccount" = "" ]]; then
   echo "Jamf API Account not set, bailing"
@@ -95,7 +100,6 @@ if [[ "$(arch)" = "arm64" ]]; then
   fi
 fi
 
-jamfAuthorizationBase64=$(printf "$jamfAPIAccount:$jamfAPIPassword" | iconv --to-code ISO-8859-1 | /usr/bin/base64 --input -)
 jamfComputerGeneralInfoXML=$(curl -H 'Content-Type: application/xml' -H "Authorization: Basic $jamfAuthorizationBase64" ""$jamfManagementURL"JSSResource/computers/udid/$hardwareUUID/subset/General")
 jamfComputerID=$(echo "$jamfComputerGeneralInfoXML" | xmllint --xpath "string(//id)" -)
 jamfSupervisionStatus=$(echo "$jamfComputerGeneralInfoXML" | xmllint --xpath "string(//supervised)" -)
@@ -105,38 +109,75 @@ if [[ "$jamfSupervisionStatus" = "false" ]]; then
   exit 1
 fi
 
-if [[ -z "$logoPath" ]] || [[ ! -f "$logoPath" ]]; then
-  /bin/echo "No logo path provided or no logo exists at specified path, using standard application icon"
-  if [[ -f "/System/Library/PreferencePanes/SoftwareUpdate.prefPane/Contents/Resources/SoftwareUpdate.icns" ]]; then
-    logoPath="/System/Library/PreferencePanes/SoftwareUpdate.prefPane/Contents/Resources/SoftwareUpdate.icns"
-  else
-    logoPath="/Applications/App Store.app/Contents/Resources/AppIcon.icns"
-  fi
+jamfProVersionJSON=$(curl -s -X GET "$jamfManagementURL""api/v1/jamf-pro-version" \
+  -H "accept: application/json" \
+  -H "Authorization: Bearer $jamfAuthorizationToken")
+
+jamfProVersion=$(getJsonValue $jamfProVersionJSON .version | awk -F '.' '{print $2}')
+
+## Software Update Command Documentation
+# https://developer.apple.com/documentation/devicemanagement/scheduleosupdatecommand/command/updatesitem
+# Jamf Pro does not currently support all of these commands. Including as comments here to ensure compatibility with various OS Versions.
+# Default: Download or install the update, depending on the current state. You can check the UpdateResults dictionary to review scheduled updates. This value is available in iOS 9 and later, macOS 10.11 and later, and tvOS 12 and later.
+# DownloadOnly: Download the software update without installing it. This value is available in iOS 9 and later, macOS 11 and later, and tvOS 12 and later.
+# InstallASAP: (Not supported in Jamf Pro) In iOS and tvOS, install a previously downloaded software update. In macOS, download the software update and trigger the restart countdown notification. This value is available in iOS 9 and later, macOS 10.11 and later, and tvOS 12 and later.
+# NotifyOnly: (Not supported in Jamf Pro) Download the software update and notify the user through the App Store. This value is available in macOS 10.11 and later.
+# InstallLater: ( Not supported in Jamf Pro) Download the software update and install it at a later time. This value is available in macOS 10.11 and later.
+# InstallForceRestart: Perform the Default action, and then force a restart if the update requires it. This value is available in macOS 11 and later.
+# MaxUserDeferrals (integer): The maximum number of times the system allows the user to postpone an update before it’s installed. The system prompts the user once a day. This key is only supported when InstallAction is InstallLater and only supported for minor OS updates (for example, macOS 12.x to 12.y).
+# Priority (string): The scheduling priority for downloading and preparing the requested update. This is only supported for minor OS updates (macOS 12.x to 12.y). Available in macOS 12.3 and later. Prior versions of macOS used a priority of Low. Default: Low. Possible values: Low, High
+# ProductKey (string): The product key that represents the update.
+# ProductVersion (string): The version of the update, which the system requires if ProductKey isn’t present. This value is available in iOS 11.3 and later, macOS 12 and later, and tvOS 12.2 and later.
+##
+
+if [[ "$jamfProVersion" -lt "33" ]]; then
+  echo "working around PI present in earlier versions of Jamf Pro"
+  /usr/libexec/mdmclient AvailableOSUpdates
 fi
 
-echo "Determining if any updates are available that require a restart"
-numberofUpdatesRequringRestart=$(/usr/sbin/softwareupdate --list --no-scan | /usr/bin/grep -i -c 'restart')
-if [[ "$numberofUpdatesRequringRestart" -eq "0" ]]; then
-  echo "No updates found which require a restart, suppressing notifications"
-elif [[ "$numberofUpdatesRequringRestart" -ge "1" ]]; then
-  echo "Updates that require a restart were found, checking for do not disturb apps"
-  if [[ "$userLoggedInStatus" -eq "1" ]] && [[ "$respectDNDApplications" = "true" ]]; then
-    for doNotDisturbAppBundleID in ${doNotDisturbAppBundleIDs[@]}; do
-      frontAppASN="$(lsappinfo front)"
-      frontAppBundleID="$(lsappinfo info -app $frontAppASN | grep bundleID | awk -F '=' '{print $2}' | sed 's/\"//g')"
-      if [[ "$frontAppBundleID" = "$doNotDisturbAppBundleID" ]]; then
-        echo "Do not disturb app $frontAppBundleID is frontmost, not displaying notification and bailing"
-        exit 0
-      fi
-    done
-  fi
+if [[ "$jamfProVersion" -lt "36" ]]; then
+	## Pre Jamf 10.36 POST Software Update MDM Command. Will only work on ABM enrolled devices or Big Sur Devices that are supervised with a user approved MDM enrollment profile and escrowed bootstrap token
+	curl -s -f -X "POST" "$jamfManagementURL""JSSResource/computercommands/command/ScheduleOSUpdate/action/install/id/$jamfComputerID" \
+		-H "Authorization: Basic $jamfAuthorizationBase64" \
+		-H 'Cache-Control: no-cache'
 fi
 
-# workaround for PI-009722
+if [[ "$jamfProVersion" -ge "36" ]] && [[ "$jamfProVersion" -lt "38" ]] && [[ "$performMajorOSUpgradeViaMDM" = "false" ]]; then
+	## Post Jamf 10.36 POST Software Update MDM Command using the new API endpoint. Will only work on ABM enrolled devices or Big Sur Devices that are supervised with a user approved MDM enrollment profile and escrowed bootstrap token
+	curl -s -f -X "POST" "$jamfManagementURL""api/v1/macos-managed-software-updates/send-updates" \
+		-H 'Accept: application/json' \
+		-H 'Cache-Control: no-cache' \
+		-H 'Content-Type: application/json' \
+		-H "Authorization: Bearer $jamfAuthorizationToken" \
+		-d '{"deviceIds":["'$jamfComputerID'"],"maxDeferrals": 0,"updateAction": "DOWNLOAD_AND_INSTALL"}'
+elif [[ "$jamfProVersion" -ge "38" ]] && [[ "$administratorChoseForceRestart" = "false" ]] && [[ "$performMajorOSUpgradeViaMDM" = "false" ]]; then
+	curl -s -f -X "POST" "$jamfManagementURL""api/v1/macos-managed-software-updates/send-updates" \
+		-H 'Accept: application/json' \
+		-H 'Cache-Control: no-cache' \
+		-H 'Content-Type: application/json' \
+		-H "Authorization: Bearer $jamfAuthorizationToken" \
+		-d '{"deviceIds":["'$jamfComputerID'"],"maxDeferrals": 0,"skipVersionVerification": false,"applyMajorUpdate": false,"updateAction": "DOWNLOAD_AND_INSTALL"}'
+elif [[ "$jamfProVersion" -ge "38" ]] && [[ "$macOSVersionEpoch" -ge "11" ]] && [[ "$administratorChoseForceRestart" = "true" ]] && [[ "$performMajorOSUpgradeViaMDM" = "false" ]]; then
+	curl -s -f -X "POST" "$jamfManagementURL""api/v1/macos-managed-software-updates/send-updates" \
+		-H 'Accept: application/json' \
+		-H 'Cache-Control: no-cache' \
+		-H 'Content-Type: application/json' \
+		-H "Authorization: Bearer $jamfAuthorizationToken" \
+		-d '{"deviceIds":["'$jamfComputerID'"],"skipVersionVerification": false,"forceRestart": true,"applyMajorUpdate": false,"updateAction": "DOWNLOAD_AND_INSTALL"}'
+elif [[ "$jamfProVersion" -ge "38" ]] && [[ "$administratorChoseForceRestart" = "false" ]] && [[ "$performMajorOSUpgradeViaMDM" = "true" ]]; then
+	curl -s -f -X "POST" "$jamfManagementURL""api/v1/macos-managed-software-updates/send-updates" \
+		-H 'Accept: application/json' \
+		-H 'Cache-Control: no-cache' \
+		-H 'Content-Type: application/json' \
+		-H "Authorization: Bearer $jamfAuthorizationToken" \
+		-d '{"deviceIds":["'$jamfComputerID'"],"maxDeferrals": 0,"skipVersionVerification": false,"forceRestart": false,"applyMajorUpdate": true,"updateAction": "DOWNLOAD_AND_INSTALL"}'
+elif [[ "$jamfProVersion" -ge "38" ]] && [[ "$administratorChoseForceRestart" = "true" ]] && [[ "$performMajorOSUpgradeViaMDM" = "true" ]]; then
+	curl -s -f -X "POST" "$jamfManagementURL""api/v1/macos-managed-software-updates/send-updates" \
+		-H 'Accept: application/json' \
+		-H 'Cache-Control: no-cache' \
+		-H 'Content-Type: application/json' \
+		-H "Authorization: Bearer $jamfAuthorizationToken" \
+		-d '{"deviceIds":["'$jamfComputerID'"],"maxDeferrals": 0,"skipVersionVerification": false,"forceRestart": true,"applyMajorUpdate": true,"updateAction": "DOWNLOAD_AND_INSTALL"}'
+fi
 
-/usr/libexec/mdmclient AvailableOSUpdates
 
-## POST Software Update MDM Command. Will only work on ABM enrolled devices or Big Sur Devices that are supervised with a user approved MDM enrollment profile and escrowed bootstrap token
-curl -s -f -X "POST" "$jamfManagementURL""JSSResource/computercommands/command/ScheduleOSUpdate/action/install/id/$jamfComputerID" \
-  -H "Authorization: Basic $jamfAuthorizationBase64" \
-  -H 'Cache-Control: no-cache'
