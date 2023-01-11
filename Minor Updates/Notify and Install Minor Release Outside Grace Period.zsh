@@ -71,15 +71,6 @@ macOSVersionEpoch="$(awk -F '.' '{print $1}' <<<"$macOSVersionMarketingCompatibl
 macOSVersionMajor="$(awk -F '.' '{print $2}' <<<"$macOSVersionMarketingCompatible")"
 
 declare -a doNotDisturbAppBundleIDs=(
-  "us.zoom.xos"
-  "com.microsoft.teams"
-  "com.cisco.webexmeetingsapp"
-  "com.webex.meetingmanager"
-  "com.apple.FaceTime"
-  "com.apple.iWork.Keynote"
-  "com.microsoft.Powerpoint"
-  "com.apple.FinalCut"
-  "com.apple.TV"
 )
 
 if [[ "$customBrandingImagePath" != "" ]]; then
@@ -161,6 +152,7 @@ availableUpdateRequiresRestart=$(grep -c "RestartRequired = 1" <<<$availableUpda
 availableRecommendedUpdates=$(grep -c "RestartRequired = 0" <<<$availableUpdateManifest)
 availableCriticalUpdates=$(grep -c "IsCritical = 1" <<<$availableUpdateManifest)
 numberofDeferredUpdates=$(grep -c "DeferredUntil" <<<$availableUpdateManifest)
+isMajorOSUpdate=$(grep -c "IsMajorOSUpdate = 1" <<<$availableUpdateManifest)
 deferredUpdateAvailabilityDate=$(grep "DeferredUntil" <<<$availableUpdateManifest | awk '{print $3}' | sed 's/\"//')
 
 if [[ $availableUpdateRequiresRestart -eq "0" ]] && [[ $availableRecommendedUpdates -eq "0" ]]; then
@@ -169,6 +161,12 @@ if [[ $availableUpdateRequiresRestart -eq "0" ]] && [[ $availableRecommendedUpda
   	defaults delete "$softwareUpdatePreferenceFile"
   	rm "$softwareUpdatePreferenceFile"
   	exit 0
+  fi
+elif [[ $availableUpdateRequiresRestart -eq "1" ]] && [[ $isMajorOSUpdate -eq "1" ]]; then
+	echo "Client requires a major update, not relevant for now, exiting"
+	if [[ -e "$softwareUpdatePreferenceFile" ]]; then
+    defaults delete "$softwareUpdatePreferenceFile"
+  	rm "$softwareUpdatePreferenceFile"
   fi
 fi
 

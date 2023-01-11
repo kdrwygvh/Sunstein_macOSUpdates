@@ -93,6 +93,7 @@ availableUpdateRequiresRestart=$(grep -c "RestartRequired = 1" <<<$availableUpda
 availableRecommendedUpdates=$(grep -c "RestartRequired = 0" <<<$availableUpdateManifest)
 availableCriticalUpdates=$(grep -c "IsCritical = 1" <<<$availableUpdateManifest)
 numberofDeferredUpdates=$(grep -c "DeferredUntil" <<<$availableUpdateManifest)
+isMajorOSUpdate=$(grep -c "IsMajorOSUpdate = 1" <<<$availableUpdateManifest)
 deferredUpdateAvailabilityDate=$(grep "DeferredUntil" <<<$availableUpdateManifest | awk '{print $3}' | sed 's/\"//')
 
 if [[ $availableUpdateRequiresRestart -eq "0" ]] && [[ $availableRecommendedUpdates -eq "0" ]]; then
@@ -101,6 +102,11 @@ if [[ $availableUpdateRequiresRestart -eq "0" ]] && [[ $availableRecommendedUpda
     defaults delete "$softwareUpdatePreferenceFile"
     rm "$softwareUpdatePreferenceFile"
   fi
+elif [[ $availableUpdateRequiresRestart -eq "1" ]] && [[ $isMajorOSUpdate -eq "1" ]]; then
+	echo "Client requires a major update, not relevant for now, exiting"
+		if [[ -e "$softwareUpdatePreferenceFile" ]]; then
+    defaults delete "$softwareUpdatePreferenceFile"
+    rm "$softwareUpdatePreferenceFile"
 else
   setSoftwareUpdateReleaseDate
 fi
